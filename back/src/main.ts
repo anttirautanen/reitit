@@ -2,11 +2,17 @@ import express from "express"
 const app = express()
 const port = "3000"
 
-app.get("/", (req, res) => {
-  res.send("Hello World!")
-  console.log("Response sent")
+const apiRouter = express.Router()
+
+apiRouter.get("/route", (req, res) => {
+  res.send({
+    start: "start-object-goes-here",
+    target: "end-object-goes-here",
+  })
 })
 
+app.use("/api", apiRouter)
+
 app.listen(port, () => {
-  console.log(`Example app listening on port ${port}`)
+  console.log(`Listening on port ${port}`)
 })
