@@ -2,7 +2,7 @@ import "ol/ol.css"
 import { useEffect } from "react"
 import TileLayer from "ol/layer/Tile"
 import { OSM } from "ol/source"
-import { View, Map } from "ol"
+import { Map, View } from "ol"
 
 export const MapView = () => {
   useEffect(() => {
