@@ -14,8 +14,8 @@ export const MapView = () => {
         }),
       ],
       view: new View({
-        center: [0, 0],
-        zoom: 2,
+        center: [2774811.8562974664, 8441498.843757609],
+        zoom: 13,
       }),
     })
 
