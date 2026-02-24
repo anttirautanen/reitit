@@ -27,3 +27,24 @@ jobs:
     - run: npm run type-check
     - run: npm run format-check
     - run: npm run build
+
+  build_back:
+
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: back
+
+    steps:
+    - uses: actions/checkout@v6
+    - uses: actions/setup-node@v6
+      with:
+        node-version: 24
+        cache: 'npm'
+        cache-dependency-path: back/package-lock.json
+    - run: npm ci
+    - run: npm run lint
+    - run: npm run type-check
+    - run: npm run format-check
+    - run: npm run build
