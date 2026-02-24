@@ -1,6 +1,8 @@
 {
   "name": "reitit",
   "private": true,
+  "author": "Antti Rautanen",
+  "license": "SEE LICENSE IN LICENSE",
   "version": "0.0.0",
   "type": "module",
   "scripts": {
