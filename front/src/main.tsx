@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client"
 import { MapView } from "./MapView"
 import { MapContextProvider } from "./MapContextProvider"
 import { SetOriginAndDestination } from "./SetOriginAndDestination"
+import { OriginAndDestinationOverlay } from "./OriginAndDestinationOverlay"
 
 const rootElement = document.getElementById("root")
 
@@ -15,6 +16,7 @@ createRoot(rootElement).render(
   <StrictMode>
     <MapContextProvider>
       <MapView />
+      <OriginAndDestinationOverlay />
       <SetOriginAndDestination />
     </MapContextProvider>
   </StrictMode>

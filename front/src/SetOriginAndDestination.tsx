@@ -4,6 +4,7 @@ import { MapBrowserEvent, Overlay } from "ol"
 import type { Coordinate } from "ol/coordinate"
 import { create } from "zustand"
 import type BaseEvent from "ol/events/Event"
+import { useStore } from "./useStore"
 
 interface PopupState {
   popupPosition: Coordinate | null
@@ -22,14 +23,34 @@ export const SetOriginAndDestination = () => {
   const { showPopup, hidePopup, popupPosition } = usePopupState()
   const overlay = useRef<Overlay>(null)
   const { map } = use(MapContext)
+  const setOrigin = useStore((state) => state.setOrigin)
+  const setDestination = useStore((state) => state.setDestination)
 
-  const handleClick = useCallback(
+  const handleMapClick = useCallback(
     (event: Event | BaseEvent) => {
       const mapBrowserEvent = event as MapBrowserEvent<PointerEvent>
       showPopup(mapBrowserEvent.coordinate)
     },
     [showPopup]
   )
+
+  const onClickSetOrigin = useCallback(() => {
+    if (!popupPosition) {
+      console.error("Popup position is not set. Cannot set origin.")
+      return
+    }
+    setOrigin(popupPosition)
+    hidePopup()
+  }, [hidePopup, popupPosition, setOrigin])
+
+  const onClickSetDestination = useCallback(() => {
+    if (!popupPosition) {
+      console.error("Popup position is not set. Cannot set destination.")
+      return
+    }
+    setDestination(popupPosition)
+    hidePopup()
+  }, [hidePopup, popupPosition, setDestination])
 
   useEffect(() => {
     if (!overlayContainerRef.current) {
@@ -47,12 +68,12 @@ export const SetOriginAndDestination = () => {
     })
 
     map.addOverlay(overlay.current)
-    map.on(["singleclick"], handleClick)
+    map.on(["singleclick"], handleMapClick)
 
     return () => {
-      map.un(["singleclick"], handleClick)
+      map.un(["singleclick"], handleMapClick)
     }
-  }, [handleClick, map])
+  }, [handleMapClick, map])
 
   useEffect(() => {
     if (overlay.current) {
@@ -66,8 +87,12 @@ export const SetOriginAndDestination = () => {
         &times;
       </button>
       <div className="flex gap-2">
-        <button className="button">Lähtö</button>
-        <button className="button">Määränpää</button>
+        <button className="button button-origin" onClick={onClickSetOrigin}>
+          Lähtö
+        </button>
+        <button className="button button-destination" onClick={onClickSetDestination}>
+          Määränpää
+        </button>
       </div>
     </div>
   )
