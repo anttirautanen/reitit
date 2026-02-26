@@ -1,10 +1,10 @@
 import { use, useCallback, useEffect, useRef } from "react"
-import { MapContext } from "./MapContext"
+import { MapContext } from "../MapContext"
 import { MapBrowserEvent, Overlay } from "ol"
 import type { Coordinate } from "ol/coordinate"
 import { create } from "zustand"
 import type BaseEvent from "ol/events/Event"
-import { useStore } from "./useStore"
+import { useStore } from "../../useStore"
 
 interface PopupState {
   popupPosition: Coordinate | null
