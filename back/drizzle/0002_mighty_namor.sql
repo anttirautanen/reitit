@@ -1,0 +1,1 @@
+ALTER TABLE "routes" ALTER COLUMN "name" SET DATA TYPE text;
