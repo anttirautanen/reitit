@@ -2,8 +2,7 @@ import { useStore } from "../../useStore"
 import { use, useEffect, useRef } from "react"
 import { Overlay } from "ol"
 import { MapContext } from "../MapContext"
-import { useQuery } from "@tanstack/react-query"
-import type { RoutesApiResponse } from "@reitit/back/src/api"
+import { RouteContext } from "../../route/RouteContext"
 
 export const OriginAndDestinationOverlay = () => {
   const originOverlay = useRef<Overlay | null>(null)
@@ -13,24 +12,9 @@ export const OriginAndDestinationOverlay = () => {
   const origin = useStore((store) => store.origin)
   const destination = useStore((store) => store.destination)
   const { map } = use(MapContext)
+  const { selectedRoute } = use(RouteContext)
 
-  const query = useQuery({
-    queryKey: ["routes"],
-    queryFn: async () => {
-      const response = await fetch("/api/routes")
-      if (!response.ok) {
-        throw new Error("Failed to fetch route")
-      }
-
-      try {
-        return (await response.json()) as RoutesApiResponse
-      } catch (error) {
-        throw new Error("Failed to parse route response: " + JSON.stringify(error))
-      }
-    },
-  })
-
-  console.log(query.data)
+  console.log(selectedRoute)
 
   useEffect(() => {
     if (!origin) {

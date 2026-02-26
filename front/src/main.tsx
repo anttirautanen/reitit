@@ -5,6 +5,7 @@ import { MapContextProvider } from "./map/MapContextProvider"
 import { SetOriginAndDestination } from "./map/overlay/SetOriginAndDestination"
 import { OriginAndDestinationOverlay } from "./map/overlay/OriginAndDestinationOverlay"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import { RouteContextProvider } from "./route/RouteContextProvider"
 
 const rootElement = document.getElementById("root")
 
@@ -19,9 +20,11 @@ createRoot(rootElement).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <MapContextProvider>
-        <MapView />
-        <OriginAndDestinationOverlay />
-        <SetOriginAndDestination />
+        <RouteContextProvider>
+          <MapView />
+          <OriginAndDestinationOverlay />
+          <SetOriginAndDestination />
+        </RouteContextProvider>
       </MapContextProvider>
     </QueryClientProvider>
   </StrictMode>
