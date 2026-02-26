@@ -1,0 +1,17 @@
+{
+  "name": "reitit",
+  "workspaces": [
+    "back",
+    "common",
+    "front"
+  ],
+  "scripts": {
+    "start": "concurrently \"npm run start:front\" \"npm run start:back\"",
+    "start:front": "npm --workspace=front run dev",
+    "start:back": "npm --workspace=back run dev",
+    "checks": "concurrently \"npm --workspace=front run lint\" \"npm --workspace=back run lint\" \"npm --workspace=front run type-check\" \"npm --workspace=back run type-check\" \"npm --workspace=front run format-check\" \"npm --workspace=back run format-check\""
+  },
+  "devDependencies": {
+    "concurrently": "9.2.1"
+  }
+}
