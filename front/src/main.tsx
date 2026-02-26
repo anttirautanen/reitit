@@ -1,6 +1,8 @@
 import { StrictMode } from "react"
 import { createRoot } from "react-dom/client"
-import { MapView } from "./Map"
+import { MapView } from "./MapView"
+import { MapContextProvider } from "./MapContextProvider"
+import { SetOriginAndDestination } from "./SetOriginAndDestination"
 
 const rootElement = document.getElementById("root")
 
@@ -11,6 +13,9 @@ if (!rootElement) {
 
 createRoot(rootElement).render(
   <StrictMode>
-    <MapView />
+    <MapContextProvider>
+      <MapView />
+      <SetOriginAndDestination />
+    </MapContextProvider>
   </StrictMode>
 )

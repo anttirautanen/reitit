@@ -43,7 +43,3 @@
 .ol-popup-closer {
   @apply text-orange-500 focus:outline-2 focus:outline-offset-1 outline-black rounded cursor-pointer absolute top-0.5 right-2;
 }
-
-.ol-popup-closer:after {
-  content: "✕";
-}
