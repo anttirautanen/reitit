@@ -6,16 +6,12 @@ import { create } from "zustand"
 import type BaseEvent from "ol/events/Event"
 
 interface PopupState {
-  origin: Coordinate | null
-  destination: Coordinate | null
   popupPosition: Coordinate | null
   showPopup: (position: Coordinate) => void
   hidePopup: () => void
 }
 
 const usePopupState = create<PopupState>((set) => ({
-  origin: null,
-  destination: null,
   popupPosition: null,
   showPopup: (position: Coordinate) => set((state) => ({ ...state, popupPosition: position })),
   hidePopup: () => set((state) => ({ ...state, popupPosition: null })),
