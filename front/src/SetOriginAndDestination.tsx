@@ -13,8 +13,8 @@ interface PopupState {
 
 const usePopupState = create<PopupState>((set) => ({
   popupPosition: null,
-  showPopup: (position: Coordinate) => set((state) => ({ ...state, popupPosition: position })),
-  hidePopup: () => set((state) => ({ ...state, popupPosition: null })),
+  showPopup: (position: Coordinate) => set(() => ({ popupPosition: position })),
+  hidePopup: () => set(() => ({ popupPosition: null })),
 }))
 
 export const SetOriginAndDestination = () => {
