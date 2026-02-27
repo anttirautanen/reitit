@@ -1,8 +1,10 @@
 import { RouteContext } from "./RouteContext"
-import { type PropsWithChildren } from "react"
+import { type PropsWithChildren, use, useEffect } from "react"
 import { useQuery } from "@tanstack/react-query"
 import type { RoutesApiResponse } from "@reitit/back/src/api"
 import { create } from "zustand"
+import { MapContext } from "../map/MapContext"
+import { MultiPoint } from "ol/geom"
 
 interface RouteStore {
   selectedRouteId: number | null
@@ -17,6 +19,7 @@ const useRouteStore = create<RouteStore>((set) => ({
 export const RouteContextProvider = ({ children }: PropsWithChildren) => {
   const selectedRouteId = useRouteStore((state) => state.selectedRouteId)
   const setSelectedRoute = useRouteStore((state) => state.setSelectedRoute)
+  const { map } = use(MapContext)
 
   const { data, isLoading, isSuccess } = useQuery({
     queryKey: ["routes"],
@@ -33,6 +36,19 @@ export const RouteContextProvider = ({ children }: PropsWithChildren) => {
       }
     },
   })
+
+  useEffect(() => {
+    if (isSuccess) {
+      const selectedRoute = data.routes.find((route) => route.id === selectedRouteId)
+      if (selectedRoute) {
+        if (selectedRoute.origin && selectedRoute.destination) {
+          const multiPoint = new MultiPoint([selectedRoute.origin.coordinates, selectedRoute.destination.coordinates])
+          const extent = multiPoint.getExtent()
+          map.getView().fit(extent, { padding: [50, 50, 50, 50], duration: 1000 })
+        }
+      }
+    }
+  }, [data, isSuccess, map, selectedRouteId])
 
   if (isLoading) {
     return <div>LOADING</div>
