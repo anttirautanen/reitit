@@ -1,4 +1,3 @@
-import { useStore } from "../../useStore"
 import { use, useEffect, useRef } from "react"
 import { Overlay } from "ol"
 import { MapContext } from "../MapContext"
@@ -9,15 +8,11 @@ export const OriginAndDestinationOverlay = () => {
   const originOverlayElement = useRef<HTMLDivElement | null>(null)
   const destinationOverlay = useRef<Overlay | null>(null)
   const destinationOverlayElement = useRef<HTMLDivElement | null>(null)
-  const origin = useStore((store) => store.origin)
-  const destination = useStore((store) => store.destination)
   const { map } = use(MapContext)
   const { selectedRoute } = use(RouteContext)
 
-  console.log(selectedRoute)
-
   useEffect(() => {
-    if (!origin) {
+    if (!selectedRoute.origin) {
       return
     }
 
@@ -27,7 +22,7 @@ export const OriginAndDestinationOverlay = () => {
     }
 
     originOverlay.current = new Overlay({
-      position: origin,
+      position: selectedRoute.origin.coordinates,
       positioning: "center-center",
       element: originOverlayElement.current,
       stopEvent: false,
@@ -40,20 +35,20 @@ export const OriginAndDestinationOverlay = () => {
         map.removeOverlay(originOverlay.current)
       }
     }
-  }, [map, origin])
+  }, [map, selectedRoute.origin])
 
   useEffect(() => {
-    if (!destination) {
+    if (!selectedRoute.destination) {
       return
     }
 
     if (!destinationOverlayElement.current) {
-      console.error("Destination overlay element reference is not set. Cannot create destination  overlay.")
+      console.error("Destination overlay element reference is not set. Cannot create destination overlay.")
       return
     }
 
     destinationOverlay.current = new Overlay({
-      position: destination,
+      position: selectedRoute.destination.coordinates,
       positioning: "center-center",
       element: destinationOverlayElement.current,
       stopEvent: false,
@@ -66,7 +61,7 @@ export const OriginAndDestinationOverlay = () => {
         map.removeOverlay(destinationOverlay.current)
       }
     }
-  }, [map, destination])
+  }, [map, selectedRoute.destination])
 
   return (
     <>

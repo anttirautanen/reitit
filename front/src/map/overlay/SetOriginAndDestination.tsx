@@ -4,7 +4,8 @@ import { MapBrowserEvent, Overlay } from "ol"
 import type { Coordinate } from "ol/coordinate"
 import { create } from "zustand"
 import type BaseEvent from "ol/events/Event"
-import { useStore } from "../../useStore"
+import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { RouteContext } from "../../route/RouteContext"
 
 interface PopupState {
   popupPosition: Coordinate | null
@@ -23,8 +24,46 @@ export const SetOriginAndDestination = () => {
   const { showPopup, hidePopup, popupPosition } = usePopupState()
   const overlay = useRef<Overlay>(null)
   const { map } = use(MapContext)
-  const setOrigin = useStore((state) => state.setOrigin)
-  const setDestination = useStore((state) => state.setDestination)
+  const { selectedRoute } = use(RouteContext)
+  const queryClient = useQueryClient()
+
+  const mutateOrigin = useMutation({
+    mutationFn: async (origin: Coordinate) => {
+      const response = await fetch(`/api/routes/${selectedRoute.id.toString()}/origin`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ coordinates: origin }),
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to set origin")
+      }
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["routes"] })
+    },
+  })
+
+  const mutateDestination = useMutation({
+    mutationFn: async (destination: Coordinate) => {
+      const response = await fetch(`/api/routes/${selectedRoute.id.toString()}/destination`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ coordinates: destination }),
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to set destination")
+      }
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["routes"] })
+    },
+  })
 
   const handleMapClick = useCallback(
     (event: Event | BaseEvent) => {
@@ -39,18 +78,18 @@ export const SetOriginAndDestination = () => {
       console.error("Popup position is not set. Cannot set origin.")
       return
     }
-    setOrigin(popupPosition)
+    mutateOrigin.mutate(popupPosition)
     hidePopup()
-  }, [hidePopup, popupPosition, setOrigin])
+  }, [hidePopup, mutateOrigin, popupPosition])
 
   const onClickSetDestination = useCallback(() => {
     if (!popupPosition) {
       console.error("Popup position is not set. Cannot set destination.")
       return
     }
-    setDestination(popupPosition)
+    mutateDestination.mutate(popupPosition)
     hidePopup()
-  }, [hidePopup, popupPosition, setDestination])
+  }, [hidePopup, mutateDestination, popupPosition])
 
   useEffect(() => {
     if (!overlayContainerRef.current) {

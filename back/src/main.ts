@@ -3,6 +3,8 @@ import { drizzle } from "drizzle-orm/node-postgres"
 import express from "express"
 import { routesTable } from "./db/schema.ts"
 import { ApiRoute, POI, RoutesApiResponse } from "./api.ts"
+import { z } from "zod"
+import { eq } from "drizzle-orm"
 
 const app = express()
 const port = "3000"
@@ -21,8 +23,8 @@ apiRouter.get("/routes", async (req, res) => {
 
   const response: RoutesApiResponse = {
     routes: routes.map((route): ApiRoute => {
-      const origin = getPOI(route.originName, route.originCoordinates)
-      const destination = getPOI(route.destinationName, route.destinationCoordinates)
+      const origin = getPOI("origin", route.originCoordinates)
+      const destination = getPOI("destination", route.destinationCoordinates)
       return {
         id: route.id,
         name: route.name,
@@ -35,8 +37,44 @@ apiRouter.get("/routes", async (req, res) => {
   res.send(response)
 })
 
-function getPOI(name: string | null, coordinates: [number, number] | null): POI | null {
-  if (name === null || coordinates === null) {
+const CoordinatesUpdateRequest = z.object({ coordinates: z.tuple([z.number(), z.number()]) })
+
+apiRouter.put("/routes/:routeId/origin", express.json(), async (req, res) => {
+  const routeId = req.params.routeId
+  const parseResult = CoordinatesUpdateRequest.safeParse(req.body)
+
+  if (!parseResult.success) {
+    res.status(400).send({ success: false, error: "Invalid coordinates" })
+    return
+  }
+
+  await db
+    .update(routesTable)
+    .set({ originCoordinates: parseResult.data.coordinates })
+    .where(eq(routesTable.id, parseInt(routeId, 10)))
+
+  res.send({ success: true })
+})
+
+apiRouter.put("/routes/:routeId/destination", express.json(), async (req, res) => {
+  const routeId = req.params.routeId
+  const parseResult = CoordinatesUpdateRequest.safeParse(req.body)
+
+  if (!parseResult.success) {
+    res.status(400).send({ success: false, error: "Invalid coordinates" })
+    return
+  }
+
+  await db
+    .update(routesTable)
+    .set({ destinationCoordinates: parseResult.data.coordinates })
+    .where(eq(routesTable.id, parseInt(routeId, 10)))
+
+  res.send({ success: true })
+})
+
+function getPOI(name: string, coordinates: [number, number] | null): POI | null {
+  if (coordinates === null) {
     return null
   }
 

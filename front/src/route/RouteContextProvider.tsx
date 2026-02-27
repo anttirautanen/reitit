@@ -1,21 +1,21 @@
 import { RouteContext } from "./RouteContext"
 import { type PropsWithChildren } from "react"
 import { useQuery } from "@tanstack/react-query"
-import type { RoutesApiResponse, ApiRoute } from "@reitit/back/src/api"
+import type { RoutesApiResponse } from "@reitit/back/src/api"
 import { create } from "zustand"
 
 interface RouteStore {
-  selectedRoute: ApiRoute | null
-  setSelectedRoute: (selectedRoute: ApiRoute) => void
+  selectedRouteId: number | null
+  setSelectedRoute: (selectedRouteId: number) => void
 }
 
 const useRouteStore = create<RouteStore>((set) => ({
-  selectedRoute: null,
-  setSelectedRoute: (selectedRoute: ApiRoute) => set({ selectedRoute }),
+  selectedRouteId: null,
+  setSelectedRoute: (selectedRouteId: number) => set({ selectedRouteId }),
 }))
 
 export const RouteContextProvider = ({ children }: PropsWithChildren) => {
-  const selectedRoute = useRouteStore((state) => state.selectedRoute)
+  const selectedRouteId = useRouteStore((state) => state.selectedRouteId)
   const setSelectedRoute = useRouteStore((state) => state.setSelectedRoute)
 
   const { data, isLoading, isSuccess } = useQuery({
@@ -42,6 +42,7 @@ export const RouteContextProvider = ({ children }: PropsWithChildren) => {
     return <div>ERROR LOADING DATA</div>
   }
 
+  const selectedRoute = data.routes.find((route) => route.id === selectedRouteId)
   if (!selectedRoute) {
     return (
       <div className="px-4 py-2">
@@ -50,7 +51,7 @@ export const RouteContextProvider = ({ children }: PropsWithChildren) => {
           {data.routes.map((route) => {
             return (
               <div key={route.id}>
-                <button className="button button-primary" type="button" onClick={() => setSelectedRoute(route)}>
+                <button className="button button-primary" type="button" onClick={() => setSelectedRoute(route.id)}>
                   {route.name}
                 </button>
               </div>
