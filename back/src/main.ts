@@ -73,6 +73,46 @@ apiRouter.put("/routes/:routeId/destination", express.json(), async (req, res) =
   res.send({ success: true })
 })
 
+apiRouter.get("/stops", async (req, res) => {
+  const stopsResponse = await fetch("https://api.digitransit.fi/routing/v2/hsl/gtfs/v1", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "digitransit-subscription-key": process.env.HSL_API_KEY,
+    },
+    body: JSON.stringify({
+      query: `
+        {
+          stops {
+            gtfsId
+            name
+            lat
+            lon
+          }
+        }
+      `,
+    }),
+  })
+
+  if (!stopsResponse.ok) {
+    res.status(500).send({ success: false, error: "Failed to fetch stops from external API" })
+    return
+  }
+
+  try {
+    const stops = await stopsResponse.json()
+    if (stops && typeof stops === "object" && "data" in stops) {
+      res.send(stops.data)
+    } else {
+      res.status(500).send({ success: false, error: "Unexpected stops response format" })
+    }
+  } catch (error) {
+    console.error(error)
+    res.status(500).send({ success: false, error: "Failed to parse stops response" })
+    return
+  }
+})
+
 function getPOI(name: string, coordinates: [number, number] | null): POI | null {
   if (coordinates === null) {
     return null

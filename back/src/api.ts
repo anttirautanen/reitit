@@ -13,3 +13,14 @@ export interface ApiRoute {
 export interface RoutesApiResponse {
   routes: ApiRoute[]
 }
+
+export interface ApiStop {
+  gtfsId: string
+  name: string
+  lat: number
+  lon: number
+}
+
+export interface StopsApiResponse {
+  stops: ApiStop[]
+}
