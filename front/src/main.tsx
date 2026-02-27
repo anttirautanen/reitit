@@ -7,6 +7,7 @@ import { OriginAndDestinationOverlay } from "./map/overlay/OriginAndDestinationO
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { RouteContextProvider } from "./route/RouteContextProvider"
 import { StopsContextProvider } from "./stops/StopsContextProvider"
+import { PickStopsOverlay } from "./map/overlay/PickStopsOverlay"
 
 const rootElement = document.getElementById("root")
 
@@ -26,6 +27,7 @@ createRoot(rootElement).render(
             <MapView />
             <OriginAndDestinationOverlay />
             <SetOriginAndDestination />
+            <PickStopsOverlay />
           </RouteContextProvider>
         </StopsContextProvider>
       </MapContextProvider>
