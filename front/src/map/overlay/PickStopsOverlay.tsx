@@ -1,51 +1,60 @@
-import { use, useCallback, useEffect, useState } from "react"
+import { use, useEffect, useRef } from "react"
 import { MapContext } from "../MapContext"
-import type { ObjectEvent } from "ol/Object"
-import type { View } from "ol"
-import type { Coordinate } from "ol/coordinate"
-import { useThrottler } from "@tanstack/react-pacer"
+import { Feature } from "ol"
+import { fromLonLat } from "ol/proj"
+import { StopsContext } from "../../stops/StopsContext"
+import VectorLayer from "ol/layer/Vector"
+import VectorSource from "ol/source/Vector"
+import { Point } from "ol/geom"
+import { Fill, Stroke, Style } from "ol/style"
+import CircleStyle from "ol/style/Circle"
 
 export const PickStopsOverlay = () => {
   const { map } = use(MapContext)
-  const [isVisible, setIsVisible] = useState(false)
-  const [center, setCenter] = useState<Coordinate>([0, 0])
-
-  const onChangeResolution = useCallback(
-    (event: ObjectEvent) => {
-      const targetView = event.target as View
-      const resolution = targetView.getResolution()
-      if (resolution === undefined) return
-      if (resolution <= 2 && !isVisible) {
-        setIsVisible(true)
-      } else if (resolution > 2 && isVisible) {
-        setIsVisible(false)
-      }
-    },
-    [isVisible]
-  )
-
-  const handleChangeCenter = useCallback(() => {
-    const center = map.getView().getCenter()
-    if (center) {
-      setCenter(center)
-    }
-  }, [map])
-
-  const onChangeCenter = useThrottler(handleChangeCenter, { wait: 1000 })
+  const vectorLayerRef = useRef<VectorLayer<VectorSource> | null>(null)
+  const vectorSourceRef = useRef<VectorSource | null>(null)
+  const { stops } = use(StopsContext)
 
   useEffect(() => {
-    map.getView().on("change:resolution", onChangeResolution)
-    map.getView().on("change:center", onChangeCenter.maybeExecute)
+    if (!vectorLayerRef.current) {
+      const vectorSource = new VectorSource()
+      vectorSourceRef.current = vectorSource
+      vectorLayerRef.current = new VectorLayer({
+        source: vectorSourceRef.current,
+        style: new Style({
+          image: new CircleStyle({
+            radius: 6,
+            fill: new Fill({ color: "rgb(83,193,77)" }),
+            stroke: new Stroke({ color: "white", width: 2 }),
+          }),
+        }),
+        updateWhileInteracting: true,
+        updateWhileAnimating: true,
+      })
+
+      stops.forEach((stop) => {
+        const feature = new Feature({
+          geometry: new Point(fromLonLat([stop.lon, stop.lat])),
+          stop: stop,
+        })
+        vectorSource.addFeature(feature)
+      })
+
+      map.addLayer(vectorLayerRef.current)
+    }
 
     return () => {
-      map.getView().un("change:resolution", onChangeResolution)
-      map.getView().un("change:center", onChangeCenter.maybeExecute)
+      if (vectorLayerRef.current) {
+        map.removeLayer(vectorLayerRef.current)
+        vectorLayerRef.current = null
+
+        if (vectorSourceRef.current) {
+          vectorSourceRef.current.clear()
+        }
+        vectorSourceRef.current = null
+      }
     }
-  }, [map, onChangeCenter, onChangeResolution])
+  }, [map, stops])
 
-  if (isVisible) {
-    return <div>stops visible {center}</div>
-  }
-
-  return <div>stops hidden</div>
+  return null
 }
