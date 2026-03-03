@@ -5,9 +5,7 @@
     "front"
   ],
   "scripts": {
-    "start": "concurrently \"npm run start:front\" \"npm run start:back\"",
-    "start:front": "npm --workspace=front run dev",
-    "start:back": "npm --workspace=back run dev"
+    "start": "pnpm run --parallel dev"
   },
   "devDependencies": {
     "concurrently": "catalog:"
