@@ -10,6 +10,6 @@
     "start:back": "npm --workspace=back run dev"
   },
   "devDependencies": {
-    "concurrently": "9.2.1"
+    "concurrently": "catalog:"
   }
 }
