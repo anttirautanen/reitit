@@ -1,0 +1,5 @@
+packages:
+  - back
+  - front
+
+linkWorkspacePackages: true
