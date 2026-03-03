@@ -20,7 +20,6 @@ jobs:
     - uses: actions/setup-node@v6
       with:
         node-version: 24
-        cache: 'pnpm'
     - run: pnpm install --frozen-lockfile
     - run: npm run checks
 
@@ -41,8 +40,6 @@ jobs:
     - uses: actions/setup-node@v6
       with:
         node-version: 24
-        cache: 'npm'
-        cache-dependency-path: front/package-lock.json
     - run: pnpm install --frozen-lockfile
     - run: npm run lint
     - run: npm run type-check
@@ -66,8 +63,6 @@ jobs:
     - uses: actions/setup-node@v6
       with:
         node-version: 24
-        cache: 'npm'
-        cache-dependency-path: back/package-lock.json
     - run: pnpm install --frozen-lockfile
     - run: npm run lint
     - run: npm run type-check
