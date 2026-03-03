@@ -1,8 +1,8 @@
 import "dotenv/config"
 import { drizzle } from "drizzle-orm/node-postgres"
 import express from "express"
-import { routesTable } from "./db/schema.ts"
-import { ApiRoute, POI, RoutesApiResponse } from "./api.ts"
+import { routesTable } from "./db/schema.js"
+import { ApiRoute, POI, RoutesApiResponse } from "./api.js"
 import { z } from "zod"
 import { eq } from "drizzle-orm"
 
