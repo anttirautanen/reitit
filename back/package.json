@@ -17,6 +17,8 @@
     "dotenv": "catalog:",
     "drizzle-orm": "catalog:",
     "express": "catalog:",
+    "express-rate-limit": "catalog:",
+    "lru-cache": "catalog:",
     "pg": "catalog:",
     "tsx": "catalog:",
     "zod": "catalog:"

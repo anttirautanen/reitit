@@ -1,22 +1,98 @@
 import "dotenv/config"
 import { drizzle } from "drizzle-orm/node-postgres"
-import express from "express"
+import express, { Request, Response, NextFunction } from "express"
 import { routesTable } from "./db/schema.js"
 import { ApiRoute, POI, RoutesApiResponse } from "./api.js"
 import { z } from "zod"
 import { eq } from "drizzle-orm"
+import rateLimit from "express-rate-limit"
+import { LRUCache } from "lru-cache"
 
 const app = express()
 const port = "3000"
 
-if (!process.env.DATABASE_URL) {
-  console.error("DATABASE_URL environment variable is not set. Please set it to your PostgreSQL connection string.")
+const DATABASE_URL = process.env.DATABASE_URL
+if (!DATABASE_URL) {
+  console.error("DATABASE_URL environment variable is not set. Please set it to PostgreSQL connection string.")
   process.exit(1)
 }
 
-const db = drizzle(process.env.DATABASE_URL)
+const DIGITRANSIT_API_KEY = process.env.DIGITRANSIT_API_KEY
+if (!DIGITRANSIT_API_KEY) {
+  console.error("DIGITRANSIT_API_KEY environment variable is not set. Please set it to Digitransit subscription key.")
+  process.exit(1)
+}
+
+const db = drizzle(DATABASE_URL)
+
+const tileCache = new LRUCache<string, Buffer>({
+  max: 2000,
+  ttl: 24 * 60 * 60 * 1000, // 24 hours
+})
 
 const apiRouter = express.Router()
+
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  limit: 2000,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  ipv6Subnet: 56,
+})
+
+type TileRequest = Request<{ z: string; x: string; y: string }>
+const TILE_Z_MAX = 22
+const validateTileRequest = (req: TileRequest, res: Response, next: NextFunction) => {
+  const z = Number(req.params.z)
+  const x = Number(req.params.x)
+  const y = Number(req.params.y)
+
+  if (!Number.isInteger(z) || !Number.isInteger(x) || !Number.isInteger(y)) {
+    return res.status(400).send()
+  }
+
+  if (z < 0 || z > TILE_Z_MAX) {
+    return res.status(400).send()
+  }
+
+  const n = 2 ** z
+  if (x < 0 || x >= n || y < 0 || y >= n) {
+    return res.status(400).send()
+  }
+
+  next()
+}
+
+apiRouter.get("/tiles/:z/:x/:y", limiter, validateTileRequest, async (req: TileRequest, res) => {
+  const cacheKey = `${req.params.z}/${req.params.x}/${req.params.y}`
+  const cached = tileCache.get(cacheKey)
+
+  if (cached) {
+    res.set("Content-Type", "image/png")
+    res.set("Cache-Control", "public, max-age=86400, immutable") // 24 hours
+    res.send(cached)
+    return
+  }
+
+  const upstream = await fetch(`https://cdn.digitransit.fi/map/v3/hsl-map/${req.params.z}/${req.params.x}/${req.params.y}.png`, {
+    headers: {
+      "digitransit-subscription-key": DIGITRANSIT_API_KEY,
+    },
+  })
+
+  if (!upstream.ok) {
+    res.status(502).send()
+    console.error("Failed to load tile from upstream:", upstream.status, upstream.statusText)
+    return
+  }
+
+  const buffer = Buffer.from(await upstream.arrayBuffer())
+  tileCache.set(cacheKey, buffer)
+
+  res.set("Content-Type", "image/png")
+  res.set("Cache-Control", "public, max-age=86400, immutable") // 24 hours
+  res.send(buffer)
+})
 
 apiRouter.get("/routes", async (req, res) => {
   const routes = await db.select().from(routesTable)
@@ -78,7 +154,7 @@ apiRouter.get("/stops", async (req, res) => {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "digitransit-subscription-key": process.env.HSL_API_KEY,
+      "digitransit-subscription-key": DIGITRANSIT_API_KEY,
     },
     body: JSON.stringify({
       query: `
