@@ -8,6 +8,23 @@ import VectorSource from "ol/source/Vector"
 import { Point } from "ol/geom"
 import { Fill, Stroke, Style } from "ol/style"
 import CircleStyle from "ol/style/Circle"
+import { Select } from "ol/interaction"
+
+const stopStyle = new Style({
+  image: new CircleStyle({
+    radius: 6,
+    fill: new Fill({ color: "rgb(83,193,77)" }),
+    stroke: new Stroke({ color: "white", width: 2 }),
+  }),
+})
+
+const selectedStopStyle = new Style({
+  image: new CircleStyle({
+    radius: 6,
+    fill: new Fill({ color: "rgb(177 27 7)" }),
+    stroke: new Stroke({ color: "white", width: 2 }),
+  }),
+})
 
 export const PickStopsOverlay = () => {
   const { map } = use(MapContext)
@@ -21,13 +38,7 @@ export const PickStopsOverlay = () => {
       vectorSourceRef.current = vectorSource
       vectorLayerRef.current = new VectorLayer({
         source: vectorSourceRef.current,
-        style: new Style({
-          image: new CircleStyle({
-            radius: 6,
-            fill: new Fill({ color: "rgb(83,193,77)" }),
-            stroke: new Stroke({ color: "white", width: 2 }),
-          }),
-        }),
+        style: stopStyle,
         updateWhileInteracting: true,
         updateWhileAnimating: true,
       })
@@ -40,7 +51,10 @@ export const PickStopsOverlay = () => {
         vectorSource.addFeature(feature)
       })
 
+      const selectSingleClick = new Select({ style: selectedStopStyle })
+
       map.addLayer(vectorLayerRef.current)
+      map.addInteraction(selectSingleClick)
     }
 
     return () => {
