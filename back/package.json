@@ -12,7 +12,9 @@
     "lint": "eslint .",
     "type-check": "tsc --noEmit",
     "format-check": "prettier --check .",
-    "migrate": "drizzle-kit migrate"
+    "migrate": "drizzle-kit migrate",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "dotenv": "catalog:",
@@ -29,10 +31,12 @@
     "@types/express": "catalog:",
     "@types/node": "catalog:",
     "@types/pg": "catalog:",
+    "@vitest/ui": "catalog:",
     "drizzle-kit": "catalog:",
     "eslint": "catalog:",
     "prettier": "catalog:",
     "typescript": "catalog:",
-    "typescript-eslint": "catalog:"
+    "typescript-eslint": "catalog:",
+    "vitest": "catalog:"
   }
 }

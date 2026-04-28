@@ -11,7 +11,9 @@
     "lint": "eslint .",
     "type-check": "tsc --noEmit",
     "format-check": "prettier --check .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "react": "catalog:",
@@ -23,22 +25,27 @@
     "@tailwindcss/vite": "catalog:",
     "@tanstack/react-pacer": "catalog:",
     "@tanstack/react-query": "catalog:",
+    "@testing-library/jest-dom": "catalog:",
+    "@testing-library/react": "catalog:",
     "@types/node": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
     "@vitejs/plugin-react": "catalog:",
+    "@vitest/ui": "catalog:",
     "eslint": "catalog:",
     "eslint-plugin-react-dom": "catalog:",
     "eslint-plugin-react-hooks": "catalog:",
     "eslint-plugin-react-refresh": "catalog:",
     "eslint-plugin-react-x": "catalog:",
     "globals": "catalog:",
+    "jsdom": "catalog:",
     "ol": "catalog:",
     "prettier": "catalog:",
     "tailwindcss": "catalog:",
     "typescript": "catalog:",
     "typescript-eslint": "catalog:",
     "vite": "catalog:",
+    "vitest": "catalog:",
     "zustand": "catalog:"
   }
 }
