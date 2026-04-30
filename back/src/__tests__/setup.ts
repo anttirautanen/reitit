@@ -1,4 +1,4 @@
-import express, { Express } from "express"
+import express, { Express, Router } from "express"
 import { Server } from "http"
 import { AddressInfo } from "net"
 import { drizzle, NodePgDatabase } from "drizzle-orm/node-postgres"
@@ -7,7 +7,6 @@ import { sql } from "drizzle-orm"
 import pg from "pg"
 import { fileURLToPath } from "url"
 import { dirname, resolve } from "path"
-import { registerRoutesRoutes } from "../routes/routes.js"
 import { routeStopsTable } from "../db/schema.js"
 
 function getTestDatabaseUrl(): string {
@@ -44,7 +43,24 @@ export async function applyMigrations(): Promise<void> {
 
 export async function truncateAll(): Promise<void> {
   const db = getDb()
-  await db.execute(sql`TRUNCATE route_stops, routes RESTART IDENTITY CASCADE`)
+  // Discover application tables in the public schema, excluding tables owned by
+  // extensions (e.g. PostGIS's spatial_ref_sys). The drizzle migration metadata
+  // lives in a separate `drizzle` schema and is naturally excluded here.
+  const tables = await db.execute<{ relname: string }>(sql`
+    SELECT c.relname
+    FROM pg_class c
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    LEFT JOIN pg_depend d ON d.objid = c.oid AND d.deptype = 'e'
+    WHERE c.relkind = 'r'
+      AND n.nspname = 'public'
+      AND d.objid IS NULL
+  `)
+  if (tables.rows.length === 0) return
+  const tableList = sql.join(
+    tables.rows.map((r) => sql.identifier(r.relname)),
+    sql.raw(", "),
+  )
+  await db.execute(sql`TRUNCATE ${tableList} RESTART IDENTITY CASCADE`)
 }
 
 export async function closeDb(): Promise<void> {
@@ -57,7 +73,9 @@ export async function closeDb(): Promise<void> {
 
 export interface SeedRouteInput {
   name: string
+  /** Tuple is `[lon, lat]` per ST_MakePoint (X, Y) convention. */
   originCoordinates?: [number, number]
+  /** Tuple is `[lon, lat]` per ST_MakePoint (X, Y) convention. */
   destinationCoordinates?: [number, number]
 }
 
@@ -103,11 +121,13 @@ export interface TestServer {
   close: () => Promise<void>
 }
 
-export async function startTestServer(): Promise<TestServer> {
+export async function startTestServer(
+  register: (router: Router, deps: { db: NodePgDatabase }) => void,
+): Promise<TestServer> {
   const db = getDb()
   const app: Express = express()
   const apiRouter = express.Router()
-  registerRoutesRoutes(apiRouter, { db })
+  register(apiRouter, { db })
   app.use("/api", apiRouter)
 
   const server: Server = await new Promise((resolveListen) => {

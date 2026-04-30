@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest"
 import type { RoutesApiResponse } from "../api.js"
+import { registerRoutesRoutes } from "../routes/routes.js"
 import {
   applyMigrations,
   closeDb,
@@ -11,15 +12,17 @@ import {
 } from "./setup.js"
 
 describe("GET /api/routes", () => {
-  let server: TestServer
+  let server: TestServer | undefined
 
   beforeAll(async () => {
     await applyMigrations()
-    server = await startTestServer()
+    server = await startTestServer(registerRoutesRoutes)
   })
 
   afterAll(async () => {
-    await server.close()
+    if (server !== undefined) {
+      await server.close()
+    }
     await closeDb()
   })
 
@@ -28,6 +31,7 @@ describe("GET /api/routes", () => {
   })
 
   async function fetchRoutes(): Promise<RoutesApiResponse> {
+    if (server === undefined) throw new Error("test server not initialised")
     const response = await fetch(`${server.url}/api/routes`)
     expect(response.ok).toBe(true)
     return (await response.json()) as RoutesApiResponse

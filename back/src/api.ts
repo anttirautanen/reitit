@@ -48,13 +48,15 @@ export interface ApiDeparture {
   headsign: string
 }
 
+export interface ApiStopLineDepartures {
+  gtfsId: string
+  shortName: string
+  departures: ApiDeparture[]
+}
+
 export interface ApiStopDepartures {
   stopId: string
-  lines: {
-    gtfsId: string
-    shortName: string
-    departures: ApiDeparture[]
-  }[]
+  lines: ApiStopLineDepartures[]
 }
 
 export interface DeparturesApiResponse {
