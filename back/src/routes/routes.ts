@@ -1,9 +1,9 @@
-import { eq } from "drizzle-orm"
+import { asc, eq } from "drizzle-orm"
 import { NodePgDatabase } from "drizzle-orm/node-postgres"
 import express, { Router } from "express"
 import { z } from "zod"
-import { ApiRoute, POI, RoutesApiResponse } from "../api.js"
-import { routesTable } from "../db/schema.js"
+import { ApiCuratedStop, ApiRoute, POI, RoutesApiResponse } from "../api.js"
+import { routeStopsTable, routesTable } from "../db/schema.js"
 
 const CoordinatesUpdateRequest = z.object({ coordinates: z.tuple([z.number(), z.number()]) })
 
@@ -11,7 +11,17 @@ export function registerRoutesRoutes(router: Router, deps: { db: NodePgDatabase 
   const { db } = deps
 
   router.get("/routes", async (req, res) => {
-    const routes = await db.select().from(routesTable)
+    const [routes, routeStops] = await Promise.all([
+      db.select().from(routesTable),
+      db.select().from(routeStopsTable).orderBy(asc(routeStopsTable.stopId)),
+    ])
+
+    const curatedStopsByRouteId = new Map<number, ApiCuratedStop[]>()
+    for (const routeStop of routeStops) {
+      const list = curatedStopsByRouteId.get(routeStop.routeId) ?? []
+      list.push({ stopId: routeStop.stopId, lines: routeStop.lines })
+      curatedStopsByRouteId.set(routeStop.routeId, list)
+    }
 
     const response: RoutesApiResponse = {
       routes: routes.map((route): ApiRoute => {
@@ -22,6 +32,7 @@ export function registerRoutesRoutes(router: Router, deps: { db: NodePgDatabase 
           name: route.name,
           origin,
           destination,
+          curatedStops: curatedStopsByRouteId.get(route.id) ?? [],
         }
       }),
     }

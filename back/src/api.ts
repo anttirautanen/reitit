@@ -3,11 +3,17 @@ export interface POI {
   coordinates: [number, number]
 }
 
+export interface ApiCuratedStop {
+  stopId: string
+  lines: string[]
+}
+
 export interface ApiRoute {
   id: number
   name: string
   origin: POI | null
   destination: POI | null
+  curatedStops: ApiCuratedStop[]
 }
 
 export interface RoutesApiResponse {
@@ -23,4 +29,48 @@ export interface ApiStop {
 
 export interface StopsApiResponse {
   stops: ApiStop[]
+}
+
+export interface ApiStopLine {
+  gtfsId: string
+  shortName: string
+  mode: string
+}
+
+export interface StopLinesApiResponse {
+  lines: ApiStopLine[]
+}
+
+export interface ApiDeparture {
+  scheduledAt: string
+  realtimeAt: string
+  isRealtime: boolean
+  headsign: string
+}
+
+export interface ApiStopDepartures {
+  stopId: string
+  lines: {
+    gtfsId: string
+    shortName: string
+    departures: ApiDeparture[]
+  }[]
+}
+
+export interface DeparturesApiResponse {
+  stops: ApiStopDepartures[]
+}
+
+export interface ApiVehicle {
+  id: string
+  lineGtfsId: string
+  lineShortName: string
+  lon: number
+  lat: number
+  bearing: number | null
+  speedMs: number | null
+}
+
+export interface VehiclesApiResponse {
+  vehicles: ApiVehicle[]
 }
