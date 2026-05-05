@@ -2,6 +2,7 @@ import "dotenv/config"
 import { drizzle } from "drizzle-orm/node-postgres"
 import express from "express"
 import { createDigitransitClient } from "./digitransit/client.js"
+import { registerDeparturesRoutes } from "./routes/departures.js"
 import { registerRouteStopsRoutes } from "./routes/routeStops.js"
 import { registerRoutesRoutes } from "./routes/routes.js"
 import { registerStopLinesRoutes } from "./routes/stopLines.js"
@@ -31,6 +32,7 @@ const apiRouter = express.Router()
 registerTileRoutes(apiRouter, { digitransitApiKey: DIGITRANSIT_API_KEY })
 registerRoutesRoutes(apiRouter, { db })
 registerRouteStopsRoutes(apiRouter, { db })
+registerDeparturesRoutes(apiRouter, { db, digitransitClient })
 registerStopsRoutes(apiRouter, { digitransitApiKey: DIGITRANSIT_API_KEY })
 registerStopLinesRoutes(apiRouter, { digitransitClient })
 
