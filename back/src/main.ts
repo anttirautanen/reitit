@@ -1,6 +1,7 @@
 import "dotenv/config"
 import { drizzle } from "drizzle-orm/node-postgres"
 import express from "express"
+import { registerRouteStopsRoutes } from "./routes/routeStops.js"
 import { registerRoutesRoutes } from "./routes/routes.js"
 import { registerStopsRoutes } from "./routes/stops.js"
 import { registerTileRoutes } from "./routes/tiles.js"
@@ -26,6 +27,7 @@ const apiRouter = express.Router()
 
 registerTileRoutes(apiRouter, { digitransitApiKey: DIGITRANSIT_API_KEY })
 registerRoutesRoutes(apiRouter, { db })
+registerRouteStopsRoutes(apiRouter, { db })
 registerStopsRoutes(apiRouter, { digitransitApiKey: DIGITRANSIT_API_KEY })
 
 app.use("/api", apiRouter)
