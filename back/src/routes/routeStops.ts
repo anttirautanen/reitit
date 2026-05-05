@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm"
+import { and, eq } from "drizzle-orm"
 import { NodePgDatabase } from "drizzle-orm/node-postgres"
 import express, { Router } from "express"
 import { z } from "zod"
@@ -9,6 +9,10 @@ import { routeStopsTable, routesTable } from "../db/schema.js"
 // (no empty array, and no empty strings within the array).
 const AddCuratedStopRequest = z.object({
   stopId: z.string().min(1),
+  lines: z.array(z.string().min(1)).min(1),
+})
+
+const UpdateCuratedStopRequest = z.object({
   lines: z.array(z.string().min(1)).min(1),
 })
 
@@ -46,6 +50,38 @@ export function registerRouteStopsRoutes(router: Router, deps: { db: NodePgDatab
       .returning()
 
     const row = inserted[0]
+    const curatedStop: ApiCuratedStop = { stopId: row.stopId, lines: row.lines }
+    res.send({ success: true, curatedStop })
+  })
+
+  router.put("/routes/:routeId/stops/:stopId", express.json(), async (req, res) => {
+    const routeId = parseInt(req.params.routeId, 10)
+    if (Number.isNaN(routeId)) {
+      res.status(400).send({ success: false, error: "Invalid route id" })
+      return
+    }
+
+    const parseResult = UpdateCuratedStopRequest.safeParse(req.body)
+    if (!parseResult.success) {
+      res.status(400).send({ success: false, error: "Invalid lines" })
+      return
+    }
+
+    const { stopId } = req.params
+    const { lines } = parseResult.data
+
+    const updated = await db
+      .update(routeStopsTable)
+      .set({ lines })
+      .where(and(eq(routeStopsTable.routeId, routeId), eq(routeStopsTable.stopId, stopId)))
+      .returning()
+
+    if (updated.length === 0) {
+      res.status(404).send({ success: false, error: "Route stop not found" })
+      return
+    }
+
+    const row = updated[0]
     const curatedStop: ApiCuratedStop = { stopId: row.stopId, lines: row.lines }
     res.send({ success: true, curatedStop })
   })
