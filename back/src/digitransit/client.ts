@@ -17,10 +17,12 @@ export interface DigitransitClient {
 interface DigitransitUpstreamErrorOptions {
   upstreamStatus: number | null
   cause?: unknown
+  graphqlErrors?: unknown[] | null
 }
 
 export class DigitransitUpstreamError extends Error {
   readonly upstreamStatus: number | null
+  readonly graphqlErrors: unknown[] | null
   override readonly cause: unknown
 
   constructor(message: string, options: DigitransitUpstreamErrorOptions) {
@@ -28,6 +30,7 @@ export class DigitransitUpstreamError extends Error {
     this.name = "DigitransitUpstreamError"
     this.upstreamStatus = options.upstreamStatus
     this.cause = options.cause
+    this.graphqlErrors = options.graphqlErrors ?? null
   }
 }
 
@@ -80,6 +83,7 @@ export function createDigitransitClient(deps: { apiKey: string }): DigitransitCl
         if (Array.isArray(errors) && errors.length > 0) {
           throw new DigitransitUpstreamError(`Digitransit returned GraphQL errors: ${truncate(JSON.stringify(errors))}`, {
             upstreamStatus: response.status,
+            graphqlErrors: errors,
           })
         }
       }

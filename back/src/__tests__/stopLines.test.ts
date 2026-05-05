@@ -1,11 +1,9 @@
-import express, { Express } from "express"
-import { Server } from "http"
-import { AddressInfo } from "net"
 import { afterEach, describe, expect, it } from "vitest"
 import type { StopLinesApiResponse } from "../api.js"
 import { DigitransitClient, DigitransitUpstreamError } from "../digitransit/client.js"
 import { STOP_LINES_QUERY } from "../digitransit/queries.js"
 import { registerStopLinesRoutes } from "../routes/stopLines.js"
+import { startTestServer, type TestServer } from "./setup.js"
 
 interface FakeCall {
   query: string
@@ -31,38 +29,8 @@ function fakeClient(impl: (query: string, variables?: Record<string, unknown>) =
   }
 }
 
-interface RunningServer {
-  url: string
-  close: () => Promise<void>
-}
-
-async function startServer(client: DigitransitClient): Promise<RunningServer> {
-  const app: Express = express()
-  const apiRouter = express.Router()
-  registerStopLinesRoutes(apiRouter, { digitransitClient: client })
-  app.use("/api", apiRouter)
-
-  const server: Server = await new Promise((resolveListen) => {
-    const s = app.listen(0, () => {
-      resolveListen(s)
-    })
-  })
-  const address = server.address() as AddressInfo
-  const url = `http://127.0.0.1:${String(address.port)}`
-  return {
-    url,
-    close: () =>
-      new Promise<void>((resolveClose, rejectClose) => {
-        server.close((err) => {
-          if (err) rejectClose(err)
-          else resolveClose()
-        })
-      }),
-  }
-}
-
 describe("GET /api/stops/:stopId/lines", () => {
-  let running: RunningServer | undefined
+  let running: TestServer | undefined
 
   afterEach(async () => {
     if (running !== undefined) {
@@ -80,15 +48,15 @@ describe("GET /api/stops/:stopId/lines", () => {
         ],
       },
     }))
-    running = await startServer(client)
+    running = await startTestServer((router) => registerStopLinesRoutes(router, { digitransitClient: client }))
 
     const response = await fetch(`${running.url}/api/stops/HSL:1234/lines`)
     expect(response.status).toBe(200)
     const body = (await response.json()) as StopLinesApiResponse
     expect(body).toEqual({
       lines: [
-        { gtfsId: "HSL:550", shortName: "550", mode: "BUS" },
         { gtfsId: "HSL:1078", shortName: "78", mode: "BUS" },
+        { gtfsId: "HSL:550", shortName: "550", mode: "BUS" },
       ],
     })
 
@@ -97,22 +65,26 @@ describe("GET /api/stops/:stopId/lines", () => {
     expect(client.calls[0].variables).toEqual({ stopId: "HSL:1234" })
   })
 
-  it("sorts the lines by shortName ascending with gtfsId as a stable secondary key", async () => {
+  it("sorts the lines by shortName in natural order with gtfsId as a stable secondary key", async () => {
     const client = fakeClient(() => ({
       stop: {
         routes: [
-          { gtfsId: "HSL:b", shortName: "10", mode: "BUS" },
-          { gtfsId: "HSL:a", shortName: "10", mode: "BUS" },
-          { gtfsId: "HSL:c", shortName: "2", mode: "BUS" },
+          { gtfsId: "HSL:550", shortName: "550", mode: "BUS" },
+          { gtfsId: "HSL:10b", shortName: "10", mode: "BUS" },
+          { gtfsId: "HSL:10a", shortName: "10", mode: "BUS" },
+          { gtfsId: "HSL:94k", shortName: "94K", mode: "BUS" },
+          { gtfsId: "HSL:2", shortName: "2", mode: "BUS" },
         ],
       },
     }))
-    running = await startServer(client)
+    running = await startTestServer((router) => registerStopLinesRoutes(router, { digitransitClient: client }))
 
     const response = await fetch(`${running.url}/api/stops/HSL:1234/lines`)
     expect(response.status).toBe(200)
     const body = (await response.json()) as StopLinesApiResponse
-    expect(body.lines.map((l) => l.gtfsId)).toEqual(["HSL:a", "HSL:b", "HSL:c"])
+    expect(body.lines.map((l) => l.shortName)).toEqual(["2", "10", "10", "94K", "550"])
+    // Stable secondary key: identical "10" entries are ordered by gtfsId ascending.
+    expect(body.lines.map((l) => l.gtfsId)).toEqual(["HSL:2", "HSL:10a", "HSL:10b", "HSL:94k", "HSL:550"])
   })
 
   it("caches per stopId so repeated GETs hit the upstream only once", async () => {
@@ -121,7 +93,7 @@ describe("GET /api/stops/:stopId/lines", () => {
         routes: [{ gtfsId: "HSL:550", shortName: "550", mode: "BUS" }],
       },
     }))
-    running = await startServer(client)
+    running = await startTestServer((router) => registerStopLinesRoutes(router, { digitransitClient: client }))
 
     const r1 = await fetch(`${running.url}/api/stops/HSL:1234/lines`)
     const b1 = (await r1.json()) as StopLinesApiResponse
@@ -141,7 +113,7 @@ describe("GET /api/stops/:stopId/lines", () => {
         },
       }
     })
-    running = await startServer(client)
+    running = await startTestServer((router) => registerStopLinesRoutes(router, { digitransitClient: client }))
 
     await fetch(`${running.url}/api/stops/HSL:1234/lines`)
     await fetch(`${running.url}/api/stops/HSL:5678/lines`)
@@ -155,7 +127,7 @@ describe("GET /api/stops/:stopId/lines", () => {
     const client = fakeClient(() => {
       throw new DigitransitUpstreamError("upstream went bad", { upstreamStatus: 500 })
     })
-    running = await startServer(client)
+    running = await startTestServer((router) => registerStopLinesRoutes(router, { digitransitClient: client }))
 
     const response = await fetch(`${running.url}/api/stops/HSL:1234/lines`)
     expect(response.status).toBe(502)
@@ -165,7 +137,7 @@ describe("GET /api/stops/:stopId/lines", () => {
 
   it("returns 400 when the stopId is empty after URL decoding and does not call the client", async () => {
     const client = fakeClient(() => ({ stop: { routes: [] } }))
-    running = await startServer(client)
+    running = await startTestServer((router) => registerStopLinesRoutes(router, { digitransitClient: client }))
 
     const response = await fetch(`${running.url}/api/stops/%20/lines`)
     expect(response.status).toBe(400)

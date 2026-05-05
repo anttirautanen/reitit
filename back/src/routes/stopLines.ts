@@ -16,6 +16,10 @@ interface StopLinesQueryResponse {
   } | null
 }
 
+// Natural-sort collator: orders shortName values like "2", "10", "94K", "550"
+// in numeric ascending order rather than lexicographically.
+const shortNameCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" })
+
 export function registerStopLinesRoutes(router: Router, deps: { digitransitClient: DigitransitClient }): void {
   const { digitransitClient } = deps
 
@@ -56,8 +60,8 @@ export function registerStopLinesRoutes(router: Router, deps: { digitransitClien
     const lines: ApiStopLine[] = routes
       .map((r) => ({ gtfsId: r.gtfsId, shortName: r.shortName, mode: r.mode }))
       .sort((a, b) => {
-        if (a.shortName < b.shortName) return -1
-        if (a.shortName > b.shortName) return 1
+        const cmp = shortNameCollator.compare(a.shortName, b.shortName)
+        if (cmp !== 0) return cmp
         if (a.gtfsId < b.gtfsId) return -1
         if (a.gtfsId > b.gtfsId) return 1
         return 0

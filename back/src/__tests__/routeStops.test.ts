@@ -21,7 +21,8 @@ describe("POST /api/routes/:routeId/stops", () => {
 
   beforeAll(async () => {
     await applyMigrations()
-    server = await startTestServer((router, deps) => {
+    server = await startTestServer((router) => {
+      const deps = { db: getDb() }
       registerRoutesRoutes(router, deps)
       registerRouteStopsRoutes(router, deps)
     })
@@ -150,7 +151,8 @@ describe("PUT /api/routes/:routeId/stops/:stopId", () => {
 
   beforeAll(async () => {
     await applyMigrations()
-    server = await startTestServer((router, deps) => {
+    server = await startTestServer((router) => {
+      const deps = { db: getDb() }
       registerRoutesRoutes(router, deps)
       registerRouteStopsRoutes(router, deps)
     })
@@ -265,7 +267,8 @@ describe("DELETE /api/routes/:routeId/stops/:stopId", () => {
 
   beforeAll(async () => {
     await applyMigrations()
-    server = await startTestServer((router, deps) => {
+    server = await startTestServer((router) => {
+      const deps = { db: getDb() }
       registerRoutesRoutes(router, deps)
       registerRouteStopsRoutes(router, deps)
     })

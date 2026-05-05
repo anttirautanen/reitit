@@ -37,6 +37,7 @@ export interface ApiStopLine {
   mode: string
 }
 
+/** Lines are returned in natural-sort `shortName` ascending order with `gtfsId` as a stable secondary key, so the frontend does not need to re-sort. */
 export interface StopLinesApiResponse {
   lines: ApiStopLine[]
 }

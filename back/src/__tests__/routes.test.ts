@@ -4,6 +4,7 @@ import { registerRoutesRoutes } from "../routes/routes.js"
 import {
   applyMigrations,
   closeDb,
+  getDb,
   seedRoute,
   seedRouteStop,
   startTestServer,
@@ -16,7 +17,7 @@ describe("GET /api/routes", () => {
 
   beforeAll(async () => {
     await applyMigrations()
-    server = await startTestServer(registerRoutesRoutes)
+    server = await startTestServer((router) => registerRoutesRoutes(router, { db: getDb() }))
   })
 
   afterAll(async () => {

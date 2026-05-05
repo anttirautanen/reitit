@@ -121,13 +121,10 @@ export interface TestServer {
   close: () => Promise<void>
 }
 
-export async function startTestServer(
-  register: (router: Router, deps: { db: NodePgDatabase }) => void,
-): Promise<TestServer> {
-  const db = getDb()
+export async function startTestServer(register: (router: Router) => void): Promise<TestServer> {
   const app: Express = express()
   const apiRouter = express.Router()
-  register(apiRouter, { db })
+  register(apiRouter)
   app.use("/api", apiRouter)
 
   const server: Server = await new Promise((resolveListen) => {
