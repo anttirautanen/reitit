@@ -107,4 +107,26 @@ describe("cacheKeyForRoute", () => {
 
     expect(route1).not.toBe(route2)
   })
+
+  it("produces different keys when stopLines content differs for the same (routeId, kind)", () => {
+    const a = cacheKeyForRoute({
+      routeId: 1,
+      kind: "departures",
+      stopLines: [{ stopId: "A", lineGtfsId: "1" }],
+    })
+    const b = cacheKeyForRoute({
+      routeId: 1,
+      kind: "departures",
+      stopLines: [{ stopId: "A", lineGtfsId: "2" }],
+    })
+
+    expect(a).not.toBe(b)
+  })
+
+  it("produces the same key when both stopLines and lineDirections are undefined", () => {
+    const a = cacheKeyForRoute({ routeId: 1, kind: "departures" })
+    const b = cacheKeyForRoute({ routeId: 1, kind: "departures" })
+
+    expect(a).toBe(b)
+  })
 })

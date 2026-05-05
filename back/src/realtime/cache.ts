@@ -96,13 +96,17 @@ export function cacheKeyForRoute(input: CacheKeyInput): string {
  * single-flight de-duplication); the upstream is rate-limited at our layer
  * and the brief duplication is acceptable at our scale.
  */
-export async function getOrFetch<T>(key: string, ttlMs: number, fetcher: () => Promise<T>): Promise<T> {
+export async function getOrFetch<T extends NonNullable<unknown>>(
+  key: string,
+  ttlMs: number,
+  fetcher: () => Promise<T>,
+): Promise<T> {
   const hit = cache.get(key) as T | undefined
   if (hit !== undefined) {
     return hit
   }
   const value = await fetcher()
-  cache.set(key, value as NonNullable<unknown>, { ttl: ttlMs })
+  cache.set(key, value, { ttl: ttlMs })
   return value
 }
 
