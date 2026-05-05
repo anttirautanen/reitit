@@ -256,6 +256,6 @@ describe("PUT /api/routes/:routeId/stops/:stopId", () => {
     const response = await putStop(999999, "HSL:1234", { lines: ["HSL:550"] })
     expect(response.status).toBe(404)
     const body = (await response.json()) as ErrorResponse
-    expect(body).toEqual({ success: false, error: "Route stop not found" })
+    expect(body).toEqual({ success: false, error: "Route not found" })
   })
 })

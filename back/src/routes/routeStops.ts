@@ -6,22 +6,28 @@ import { ApiCuratedStop } from "../api.js"
 import { routeStopsTable, routesTable } from "../db/schema.js"
 
 // `lines: z.array(z.string().min(1)).min(1)` enforces the non-empty-lines invariant
-// (no empty array, and no empty strings within the array).
+// (no empty array, and no empty strings within the array). The same invariant is
+// applied to both the add and update request schemas below.
 const AddCuratedStopRequest = z.object({
   stopId: z.string().min(1),
   lines: z.array(z.string().min(1)).min(1),
 })
 
-const UpdateCuratedStopRequest = z.object({
+const UpdateRouteStopLinesRequest = z.object({
   lines: z.array(z.string().min(1)).min(1),
 })
+
+function parseRouteId(raw: string): number | null {
+  const parsed = parseInt(raw, 10)
+  return Number.isNaN(parsed) ? null : parsed
+}
 
 export function registerRouteStopsRoutes(router: Router, deps: { db: NodePgDatabase }): void {
   const { db } = deps
 
   router.post("/routes/:routeId/stops", express.json(), async (req, res) => {
-    const routeId = parseInt(req.params.routeId, 10)
-    if (Number.isNaN(routeId)) {
+    const routeId = parseRouteId(req.params.routeId)
+    if (routeId === null) {
       res.status(400).send({ success: false, error: "Invalid route id" })
       return
     }
@@ -55,13 +61,13 @@ export function registerRouteStopsRoutes(router: Router, deps: { db: NodePgDatab
   })
 
   router.put("/routes/:routeId/stops/:stopId", express.json(), async (req, res) => {
-    const routeId = parseInt(req.params.routeId, 10)
-    if (Number.isNaN(routeId)) {
+    const routeId = parseRouteId(req.params.routeId)
+    if (routeId === null) {
       res.status(400).send({ success: false, error: "Invalid route id" })
       return
     }
 
-    const parseResult = UpdateCuratedStopRequest.safeParse(req.body)
+    const parseResult = UpdateRouteStopLinesRequest.safeParse(req.body)
     if (!parseResult.success) {
       res.status(400).send({ success: false, error: "Invalid lines" })
       return
@@ -77,6 +83,11 @@ export function registerRouteStopsRoutes(router: Router, deps: { db: NodePgDatab
       .returning()
 
     if (updated.length === 0) {
+      const existingRoute = await db.select({ id: routesTable.id }).from(routesTable).where(eq(routesTable.id, routeId)).limit(1)
+      if (existingRoute.length === 0) {
+        res.status(404).send({ success: false, error: "Route not found" })
+        return
+      }
       res.status(404).send({ success: false, error: "Route stop not found" })
       return
     }
