@@ -96,4 +96,31 @@ export function registerRouteStopsRoutes(router: Router, deps: { db: NodePgDatab
     const curatedStop: ApiCuratedStop = { stopId: row.stopId, lines: row.lines }
     res.send({ success: true, curatedStop })
   })
+
+  router.delete("/routes/:routeId/stops/:stopId", async (req, res) => {
+    const routeId = parseRouteId(req.params.routeId)
+    if (routeId === null) {
+      res.status(400).send({ success: false, error: "Invalid route id" })
+      return
+    }
+
+    const { stopId } = req.params
+
+    const deleted = await db
+      .delete(routeStopsTable)
+      .where(and(eq(routeStopsTable.routeId, routeId), eq(routeStopsTable.stopId, stopId)))
+      .returning()
+
+    if (deleted.length === 0) {
+      const existingRoute = await db.select({ id: routesTable.id }).from(routesTable).where(eq(routesTable.id, routeId)).limit(1)
+      if (existingRoute.length === 0) {
+        res.status(404).send({ success: false, error: "Route not found" })
+        return
+      }
+      res.status(404).send({ success: false, error: "Route stop not found" })
+      return
+    }
+
+    res.send({ success: true })
+  })
 }
