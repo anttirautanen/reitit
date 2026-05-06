@@ -4,6 +4,7 @@ import express, { Router } from "express"
 import { z } from "zod"
 import { ApiCuratedStop } from "../api.js"
 import { routeStopsTable, routesTable } from "../db/schema.js"
+import { parseRouteId } from "./parseRouteId.js"
 
 // `lines: z.array(z.string().min(1)).min(1)` enforces the non-empty-lines invariant
 // (no empty array, and no empty strings within the array). The same invariant is
@@ -16,11 +17,6 @@ const AddCuratedStopRequest = z.object({
 const UpdateRouteStopLinesRequest = z.object({
   lines: z.array(z.string().min(1)).min(1),
 })
-
-function parseRouteId(raw: string): number | null {
-  const parsed = parseInt(raw, 10)
-  return Number.isNaN(parsed) ? null : parsed
-}
 
 export function registerRouteStopsRoutes(router: Router, deps: { db: NodePgDatabase }): void {
   const { db } = deps

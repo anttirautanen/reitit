@@ -6,6 +6,7 @@ import { routeStopsTable, routesTable } from "../db/schema.js"
 import { DigitransitClient, DigitransitUpstreamError } from "../digitransit/client.js"
 import { STOP_DEPARTURES_QUERY } from "../digitransit/queries.js"
 import { cacheKeyForRoute, getOrFetch } from "../realtime/cache.js"
+import { parseRouteId } from "./parseRouteId.js"
 
 /**
  * Realtime departures TTL. Short enough that consumers see fresh realtime
@@ -45,11 +46,6 @@ interface StopDeparturesRaw {
 
 interface StopDeparturesQueryResponse {
   stops: (StopDeparturesRaw | null)[] | null
-}
-
-function parseRouteId(raw: string): number | null {
-  const parsed = parseInt(raw, 10)
-  return Number.isNaN(parsed) ? null : parsed
 }
 
 export function registerDeparturesRoutes(router: Router, deps: { db: NodePgDatabase; digitransitClient: DigitransitClient }): void {
@@ -113,7 +109,7 @@ export function registerDeparturesRoutes(router: Router, deps: { db: NodePgDatab
       res.send(response)
     } catch (error) {
       if (error instanceof DigitransitUpstreamError) {
-        console.error("Digitransit upstream error fetching departures:", error)
+        console.error(`Digitransit upstream error fetching departures for routeId=${String(routeId)}:`, error)
         res.status(502).send({ success: false, error: "Upstream Digitransit error" })
         return
       }
@@ -171,15 +167,16 @@ function reshapeDepartures(
       }
     }
 
+    // Contract: only emit a `lines` entry for curated lines that have upstream
+    // departures. Curated lines with no upstream data are omitted; the frontend
+    // already knows the curated set from its own state and renders per-line
+    // pills accordingly. The stop bucket itself is always emitted so callers
+    // see one entry per curated stop, even if every curated line is empty
+    // upstream (in which case `lines` is `[]`).
     const lines: ApiStopLineDepartures[] = []
     for (const lineGtfsId of row.lines) {
       const entry = departuresByLine.get(lineGtfsId)
-      if (entry === undefined) {
-        // No upstream departures for this curated line; emit an empty bucket
-        // so the frontend can still render the line row.
-        lines.push({ gtfsId: lineGtfsId, shortName: "", departures: [] })
-        continue
-      }
+      if (entry === undefined) continue
       lines.push({ gtfsId: lineGtfsId, shortName: entry.shortName, departures: entry.departures })
     }
 

@@ -231,6 +231,45 @@ describe("GET /api/routes/:routeId/departures", () => {
     expect(body.stops[0].lines[0].departures.map((d) => d.headsign)).toEqual(["Center"])
   })
 
+  it("omits curated lines with no upstream departures (stop bucket kept, empty lines allowed)", async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date("2026-04-30T05:00:00Z"))
+
+    const { id: routeId } = await seedRoute({ name: "Route" })
+    // Two curated lines on the same stop; upstream returns data only for HSL:A.
+    await seedRouteStop({ routeId, stopId: "HSL:1", lines: ["HSL:A", "HSL:B"] })
+
+    const serviceDay = Math.floor(Date.UTC(2026, 3, 29, 21, 0, 0) / 1000)
+    activeClient = fakeClient(() => ({
+      stops: [
+        {
+          gtfsId: "HSL:1",
+          stoptimesWithoutPatterns: [
+            {
+              scheduledDeparture: 25200,
+              realtimeDeparture: 25200,
+              realtime: false,
+              serviceDay,
+              headsign: "Center",
+              trip: { route: { gtfsId: "HSL:A", shortName: "A" } },
+            },
+          ],
+        },
+      ],
+    }))
+
+    const response = await fetch(`${getServerUrl()}/api/routes/${String(routeId)}/departures`)
+    expect(response.status).toBe(200)
+    const body = (await response.json()) as DeparturesApiResponse
+
+    expect(body.stops).toHaveLength(1)
+    expect(body.stops[0].stopId).toBe("HSL:1")
+    expect(body.stops[0].lines).toHaveLength(1)
+    expect(body.stops[0].lines[0].gtfsId).toBe("HSL:A")
+    // The un-served curated line is absent (no empty-bucket placeholder).
+    expect(body.stops[0].lines.some((l) => l.gtfsId === "HSL:B")).toBe(false)
+  })
+
   it("serves the second GET from cache (fake called once)", async () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date("2026-04-30T05:00:00Z"))

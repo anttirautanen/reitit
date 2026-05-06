@@ -49,7 +49,7 @@ export function registerStopLinesRoutes(router: Router, deps: { digitransitClien
       data = await digitransitClient.query<StopLinesQueryResponse>(STOP_LINES_QUERY, { stopId })
     } catch (error) {
       if (error instanceof DigitransitUpstreamError) {
-        console.error("Digitransit upstream error fetching stop lines:", error)
+        console.error(`Digitransit upstream error fetching stop lines for stopId=${stopId}:`, error)
         res.status(502).send({ success: false, error: "Upstream Digitransit error" })
         return
       }
