@@ -1,8 +1,7 @@
 /**
  * GraphQL operations sent to the Digitransit routing API.
  *
- * Each operation is exported as a string constant. Future tasks will add
- * VEHICLE_POSITIONS_QUERY and a pattern lookup here.
+ * Each operation is exported as a string constant.
  */
 
 export const STOP_LINES_QUERY = `
@@ -12,6 +11,57 @@ export const STOP_LINES_QUERY = `
         gtfsId
         shortName
         mode
+      }
+    }
+  }
+`
+
+/**
+ * For a given stop, fetch the patterns that serve it together with the line
+ * (route) gtfsId and direction. Used by the realtime pattern resolver to map
+ * each curated `(stopId, lineGtfsId)` pair onto the line's direction(s) at
+ * that stop. Patterns are static reference data so the resolver caches the
+ * answer aggressively (see `createPatternResolver`).
+ */
+export const STOP_PATTERNS_QUERY = `
+  query StopPatterns($stopId: String!) {
+    stop(id: $stopId) {
+      patterns {
+        directionId
+        route {
+          gtfsId
+        }
+      }
+    }
+  }
+`
+
+/**
+ * Fetches live vehicle positions for a list of route gtfs ids. Direction is
+ * carried via the parent `pattern.directionId` (the `vehiclePosition` itself
+ * does not always carry direction in Digitransit's schema), so the handler
+ * threads `directionId` from the surrounding pattern through to each vehicle.
+ */
+export const VEHICLE_POSITIONS_QUERY = `
+  query VehiclePositions($routeIds: [String!]!) {
+    routes(ids: $routeIds) {
+      gtfsId
+      shortName
+      patterns {
+        directionId
+        vehiclePositions {
+          vehicleId
+          trip {
+            route {
+              gtfsId
+              shortName
+            }
+          }
+          lat
+          lon
+          heading
+          speed
+        }
       }
     }
   }

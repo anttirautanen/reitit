@@ -8,6 +8,7 @@ import { registerRoutesRoutes } from "./routes/routes.js"
 import { registerStopLinesRoutes } from "./routes/stopLines.js"
 import { registerStopsRoutes } from "./routes/stops.js"
 import { registerTileRoutes } from "./routes/tiles.js"
+import { registerVehiclesRoutes } from "./routes/vehicles.js"
 
 const app = express()
 const port = "3000"
@@ -33,6 +34,7 @@ registerTileRoutes(apiRouter, { digitransitApiKey: DIGITRANSIT_API_KEY })
 registerRoutesRoutes(apiRouter, { db })
 registerRouteStopsRoutes(apiRouter, { db })
 registerDeparturesRoutes(apiRouter, { db, digitransitClient })
+registerVehiclesRoutes(apiRouter, { db, digitransitClient })
 registerStopsRoutes(apiRouter, { digitransitApiKey: DIGITRANSIT_API_KEY })
 registerStopLinesRoutes(apiRouter, { digitransitClient })
 
