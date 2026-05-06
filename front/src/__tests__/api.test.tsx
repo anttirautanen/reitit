@@ -6,6 +6,7 @@ import {
   useAddOrUpdateCuratedStop,
   useDeleteCuratedStop,
   useDeparturesQuery,
+  useRouteWithStops,
   useRoutesQuery,
   useStopLinesQuery,
   useVehiclesQuery,
@@ -67,7 +68,7 @@ describe("useStopLinesQuery", () => {
     expect(result.current.fetchStatus).toBe("idle")
   })
 
-  it("fetches /api/stops/:stopId/lines when stopId is provided", async () => {
+  it("fetches /api/stops/:stopId/lines when stopId is provided and URL-encodes the stopId", async () => {
     const body = { lines: [{ gtfsId: "HSL:123", shortName: "1", mode: "BUS" }] }
     const fetchMock = vi.fn().mockResolvedValue(jsonResponse(body))
     vi.stubGlobal("fetch", fetchMock)
@@ -79,8 +80,66 @@ describe("useStopLinesQuery", () => {
       expect(result.current.isSuccess).toBe(true)
     })
 
-    expect(fetchMock).toHaveBeenCalledWith("/api/stops/HSL:1234/lines", undefined)
+    expect(fetchMock).toHaveBeenCalledWith("/api/stops/HSL%3A1234/lines", undefined)
     expect(result.current.data).toEqual(body)
+  })
+})
+
+describe("useRouteWithStops", () => {
+  it("returns notFound=false and undefined route when routeId is null", () => {
+    const fetchMock = vi.fn()
+    vi.stubGlobal("fetch", fetchMock)
+
+    const client = createClient()
+    const { result } = renderHook(() => useRouteWithStops(null), { wrapper: makeWrapper(client) })
+
+    // No fetch should fire because the underlying useRoutesQuery is still gated by mount,
+    // but useRouteWithStops itself should immediately return the null-routeId shape.
+    expect(result.current).toEqual({
+      route: undefined,
+      isLoading: false,
+      isError: false,
+      notFound: false,
+    })
+  })
+
+  it("returns the matching route when routes have loaded and the id exists", async () => {
+    const route = { id: 7, name: "R7", origin: null, destination: null, curatedStops: [] }
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ routes: [route] }))
+    vi.stubGlobal("fetch", fetchMock)
+
+    const client = createClient()
+    const { result } = renderHook(() => useRouteWithStops(7), { wrapper: makeWrapper(client) })
+
+    await waitFor(() => {
+      expect(result.current.route).toBeDefined()
+    })
+
+    expect(result.current).toEqual({
+      route,
+      isLoading: false,
+      isError: false,
+      notFound: false,
+    })
+  })
+
+  it("returns notFound=true when routes have loaded but the id is missing", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ routes: [] }))
+    vi.stubGlobal("fetch", fetchMock)
+
+    const client = createClient()
+    const { result } = renderHook(() => useRouteWithStops(42), { wrapper: makeWrapper(client) })
+
+    await waitFor(() => {
+      expect(result.current.notFound).toBe(true)
+    })
+
+    expect(result.current).toEqual({
+      route: undefined,
+      isLoading: false,
+      isError: false,
+      notFound: true,
+    })
   })
 })
 
@@ -159,7 +218,7 @@ describe("useDeleteCuratedStop", () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(1)
     const [path, init] = fetchMock.mock.calls[0]
-    expect(path).toBe("/api/routes/1/stops/HSL:1")
+    expect(path).toBe("/api/routes/1/stops/HSL%3A1")
     expect(init?.method).toBe("DELETE")
 
     const invalidatedKeys = invalidateSpy.mock.calls.map((call) => call[0]?.queryKey)

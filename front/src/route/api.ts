@@ -41,22 +41,30 @@ export function useRouteWithStops(routeId: number | null): {
   route: ApiRoute | undefined
   isLoading: boolean
   isError: boolean
+  notFound: boolean
 } {
   const { data, isLoading, isError } = useRoutesQuery()
   if (routeId === null) {
-    return { route: undefined, isLoading: false, isError: false }
+    return { route: undefined, isLoading: false, isError: false, notFound: false }
   }
-  return {
-    route: data?.routes.find((route) => route.id === routeId),
-    isLoading,
-    isError,
+  if (isLoading) {
+    return { route: undefined, isLoading: true, isError: false, notFound: false }
   }
+  if (isError) {
+    return { route: undefined, isLoading: false, isError: true, notFound: false }
+  }
+  const route = data?.routes.find((route) => route.id === routeId)
+  if (route === undefined) {
+    return { route: undefined, isLoading: false, isError: false, notFound: true }
+  }
+  return { route, isLoading: false, isError: false, notFound: false }
 }
 
 export function useStopLinesQuery(stopId: string | null) {
   return useQuery<StopLinesApiResponse>({
     queryKey: ["stopLines", stopId],
-    queryFn: () => apiFetch<StopLinesApiResponse>(`/api/stops/${String(stopId)}/lines`),
+    queryFn: () =>
+      apiFetch<StopLinesApiResponse>(`/api/stops/${encodeURIComponent(String(stopId))}/lines`),
     enabled: stopId !== null,
     staleTime: 60 * 60 * 1000,
   })
@@ -68,7 +76,9 @@ export function useDeparturesQuery(routeId: number | null) {
     queryFn: () => apiFetch<DeparturesApiResponse>(`/api/routes/${String(routeId)}/departures`),
     enabled: routeId !== null,
     refetchInterval: 30_000,
+    refetchIntervalInBackground: false,
     refetchOnWindowFocus: true,
+    staleTime: 25_000,
   })
 }
 
@@ -78,7 +88,9 @@ export function useVehiclesQuery(routeId: number | null) {
     queryFn: () => apiFetch<VehiclesApiResponse>(`/api/routes/${String(routeId)}/vehicles`),
     enabled: routeId !== null,
     refetchInterval: 5_000,
+    refetchIntervalInBackground: false,
     refetchOnWindowFocus: true,
+    staleTime: 4_000,
   })
 }
 
@@ -98,10 +110,12 @@ export function useAddOrUpdateCuratedStop() {
         body: JSON.stringify({ stopId, lines }),
       })
     },
-    onSuccess: (_data, variables) => {
-      void queryClient.invalidateQueries({ queryKey: ["routes"] })
-      void queryClient.invalidateQueries({ queryKey: ["departures", variables.routeId] })
-      void queryClient.invalidateQueries({ queryKey: ["vehicles", variables.routeId] })
+    onSuccess: async (_data, variables) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["routes"] }),
+        queryClient.invalidateQueries({ queryKey: ["departures", variables.routeId] }),
+        queryClient.invalidateQueries({ queryKey: ["vehicles", variables.routeId] }),
+      ])
     },
   })
 }
@@ -116,16 +130,21 @@ export function useUpdateCuratedLines() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async ({ routeId, stopId, lines }: UpdateCuratedLinesVariables) => {
-      return apiFetch<unknown>(`/api/routes/${String(routeId)}/stops/${stopId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ lines }),
-      })
+      return apiFetch<unknown>(
+        `/api/routes/${String(routeId)}/stops/${encodeURIComponent(stopId)}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ lines }),
+        },
+      )
     },
-    onSuccess: (_data, variables) => {
-      void queryClient.invalidateQueries({ queryKey: ["routes"] })
-      void queryClient.invalidateQueries({ queryKey: ["departures", variables.routeId] })
-      void queryClient.invalidateQueries({ queryKey: ["vehicles", variables.routeId] })
+    onSuccess: async (_data, variables) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["routes"] }),
+        queryClient.invalidateQueries({ queryKey: ["departures", variables.routeId] }),
+        queryClient.invalidateQueries({ queryKey: ["vehicles", variables.routeId] }),
+      ])
     },
   })
 }
@@ -139,14 +158,19 @@ export function useDeleteCuratedStop() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async ({ routeId, stopId }: DeleteCuratedStopVariables) => {
-      return apiFetch<unknown>(`/api/routes/${String(routeId)}/stops/${stopId}`, {
-        method: "DELETE",
-      })
+      return apiFetch<unknown>(
+        `/api/routes/${String(routeId)}/stops/${encodeURIComponent(stopId)}`,
+        {
+          method: "DELETE",
+        },
+      )
     },
-    onSuccess: (_data, variables) => {
-      void queryClient.invalidateQueries({ queryKey: ["routes"] })
-      void queryClient.invalidateQueries({ queryKey: ["departures", variables.routeId] })
-      void queryClient.invalidateQueries({ queryKey: ["vehicles", variables.routeId] })
+    onSuccess: async (_data, variables) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["routes"] }),
+        queryClient.invalidateQueries({ queryKey: ["departures", variables.routeId] }),
+        queryClient.invalidateQueries({ queryKey: ["vehicles", variables.routeId] }),
+      ])
     },
   })
 }
