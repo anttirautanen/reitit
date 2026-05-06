@@ -1,7 +1,6 @@
 import { RouteContext } from "./RouteContext"
 import { type PropsWithChildren, use, useEffect } from "react"
-import { useQuery } from "@tanstack/react-query"
-import type { RoutesApiResponse } from "@reitit/back/src/api"
+import { useRoutesQuery } from "./api"
 import { create } from "zustand"
 import { MapContext } from "../map/MapContext"
 import { MultiPoint } from "ol/geom"
@@ -21,21 +20,7 @@ export const RouteContextProvider = ({ children }: PropsWithChildren) => {
   const setSelectedRoute = useRouteStore((state) => state.setSelectedRoute)
   const { map } = use(MapContext)
 
-  const { data, isLoading, isSuccess } = useQuery({
-    queryKey: ["routes"],
-    queryFn: async () => {
-      const response = await fetch("/api/routes")
-      if (!response.ok) {
-        throw new Error("Failed to fetch route")
-      }
-
-      try {
-        return (await response.json()) as RoutesApiResponse
-      } catch (error) {
-        throw new Error("Failed to parse route response: " + JSON.stringify(error))
-      }
-    },
-  })
+  const { data, isLoading, isSuccess } = useRoutesQuery()
 
   useEffect(() => {
     if (isSuccess) {
