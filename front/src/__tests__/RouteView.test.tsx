@@ -12,6 +12,10 @@ vi.mock("../route/components/StopsLayer", () => ({
   StopsLayer: () => null,
 }))
 
+vi.mock("../route/components/StopCardsLayer", () => ({
+  StopCardsLayer: () => null,
+}))
+
 interface RenderOptions {
   selectedRoute: ApiRoute
   onAddStop?: () => void
