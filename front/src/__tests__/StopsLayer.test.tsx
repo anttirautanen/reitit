@@ -1,4 +1,4 @@
-import { afterEach, beforeAll, describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it } from "vitest"
 import { cleanup, render } from "@testing-library/react"
 import { Feature, Map, View } from "ol"
 import VectorLayer from "ol/layer/Vector"
@@ -8,23 +8,6 @@ import { MapContext } from "../map/MapContext"
 import { StopsContext } from "../stops/StopsContext"
 import { RouteContext } from "../route/RouteContext"
 import { StopsLayer } from "../route/components/StopsLayer"
-
-beforeAll(() => {
-  if (typeof globalThis.ResizeObserver === "undefined") {
-    class ResizeObserverStub {
-      observe() {
-        /* no-op for jsdom */
-      }
-      unobserve() {
-        /* no-op for jsdom */
-      }
-      disconnect() {
-        /* no-op for jsdom */
-      }
-    }
-    globalThis.ResizeObserver = ResizeObserverStub as unknown as typeof ResizeObserver
-  }
-})
 
 interface HarnessOptions {
   map: Map
@@ -130,10 +113,11 @@ describe("StopsLayer", () => {
     const curatedStops: ApiCuratedStop[] = [{ stopId: "HSL:1", lines: ["1001"] }]
     const { unmount } = renderHarness({ map, stops, selectedRoute: makeRoute(curatedStops) })
 
-    expect(findStopsLayer(map)).toBeDefined()
+    const layerRef = findStopsLayer(map)
+    if (!layerRef) throw new Error("expected stops layer")
 
     unmount()
 
-    expect(findStopsLayer(map)).toBeUndefined()
+    expect(map.getLayers().getArray().includes(layerRef)).toBe(false)
   })
 })
