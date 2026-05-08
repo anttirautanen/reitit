@@ -8,6 +8,10 @@ vi.mock("../map/MapView", () => ({
   MapView: () => <div data-testid="map-view-stub" />,
 }))
 
+vi.mock("../route/components/StopsLayer", () => ({
+  StopsLayer: () => null,
+}))
+
 interface RenderOptions {
   selectedRoute: ApiRoute
   onAddStop?: () => void
