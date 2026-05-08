@@ -1,9 +1,10 @@
 import { RouteContext } from "./RouteContext"
-import { type PropsWithChildren, use, useEffect } from "react"
+import { use, useEffect } from "react"
 import { useRoutesQuery } from "./api"
 import { create } from "zustand"
 import { MapContext } from "../map/MapContext"
 import { MultiPoint } from "ol/geom"
+import { RouteView } from "./RouteView"
 
 interface RouteStore {
   selectedRouteId: number | null
@@ -15,7 +16,7 @@ const useRouteStore = create<RouteStore>((set) => ({
   setSelectedRoute: (selectedRouteId: number) => set({ selectedRouteId }),
 }))
 
-export const RouteContextProvider = ({ children }: PropsWithChildren) => {
+export const RouteContextProvider = () => {
   const selectedRouteId = useRouteStore((state) => state.selectedRouteId)
   const setSelectedRoute = useRouteStore((state) => state.setSelectedRoute)
   const { map } = use(MapContext)
@@ -63,5 +64,9 @@ export const RouteContextProvider = ({ children }: PropsWithChildren) => {
     )
   }
 
-  return <RouteContext value={{ selectedRoute }}>{children}</RouteContext>
+  return (
+    <RouteContext value={{ selectedRoute }}>
+      <RouteView />
+    </RouteContext>
+  )
 }
