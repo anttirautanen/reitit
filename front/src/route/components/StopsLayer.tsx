@@ -1,4 +1,4 @@
-import { use, useEffect, useMemo } from "react"
+import { use, useEffect } from "react"
 import { Feature } from "ol"
 import { Point } from "ol/geom"
 import VectorLayer from "ol/layer/Vector"
@@ -7,8 +7,7 @@ import { fromLonLat } from "ol/proj"
 import { Fill, Stroke, Style } from "ol/style"
 import CircleStyle from "ol/style/Circle"
 import { MapContext } from "../../map/MapContext"
-import { StopsContext } from "../../stops/StopsContext"
-import { RouteContext } from "../RouteContext"
+import { useCuratedStopsResolved } from "./useCuratedStopsResolved"
 
 const curatedStopStyle = new Style({
   image: new CircleStyle({
@@ -20,14 +19,7 @@ const curatedStopStyle = new Style({
 
 export const StopsLayer = () => {
   const { map } = use(MapContext)
-  const { stops } = use(StopsContext)
-  const { selectedRoute } = use(RouteContext)
-  const { curatedStops } = selectedRoute
-
-  const curatedKey = useMemo(
-    () => curatedStops.map((cs) => `${cs.stopId}:${cs.lines.join(",")}`).join("|"),
-    [curatedStops],
-  )
+  const { key, entries } = useCuratedStopsResolved()
 
   useEffect(() => {
     const source = new VectorSource()
@@ -38,14 +30,7 @@ export const StopsLayer = () => {
       updateWhileAnimating: true,
     })
 
-    const stopsById = new Map<string, (typeof stops)[number]>()
-    for (const stop of stops) {
-      stopsById.set(stop.gtfsId, stop)
-    }
-
-    for (const curatedStop of curatedStops) {
-      const stop = stopsById.get(curatedStop.stopId)
-      if (!stop) continue
+    for (const { curatedStop, stop } of entries) {
       const feature = new Feature({
         geometry: new Point(fromLonLat([stop.lon, stop.lat])),
       })
@@ -59,9 +44,7 @@ export const StopsLayer = () => {
     return () => {
       map.removeLayer(layer)
     }
-    // curatedStops is intentionally excluded; curatedKey is its structural digest.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [map, stops, curatedKey])
+  }, [map, key, entries])
 
   return null
 }
