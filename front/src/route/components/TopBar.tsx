@@ -4,9 +4,10 @@ import { StaleIndicator } from "./StaleIndicator"
 
 interface TopBarProps {
   onAddStop?: () => void
+  addStopMode?: boolean
 }
 
-export const TopBar = ({ onAddStop }: TopBarProps) => {
+export const TopBar = ({ onAddStop, addStopMode = false }: TopBarProps) => {
   const { selectedRoute } = use(RouteContext)
 
   return (
@@ -16,7 +17,7 @@ export const TopBar = ({ onAddStop }: TopBarProps) => {
         onClick={onAddStop}
         className="text-sm font-medium text-orange-600 hover:text-orange-500 active:text-orange-700 cursor-pointer focus:outline-2 focus:outline-offset-1 outline-black rounded px-1"
       >
-        + Add stop
+        {addStopMode ? "Done" : "+ Add stop"}
       </button>
       <h1 className="text-base font-medium truncate px-2">{selectedRoute.name}</h1>
       <div className="flex items-center gap-2">

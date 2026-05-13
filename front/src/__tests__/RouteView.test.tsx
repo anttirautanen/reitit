@@ -29,12 +29,20 @@ vi.mock("../route/components/EmptyState", () => ({
   EmptyState: () => null,
 }))
 
+vi.mock("../route/components/AddStopMode", () => ({
+  AddStopMode: () => null,
+}))
+
 vi.mock("../route/api", () => ({
   useUpdateCuratedLines: () => ({
     mutateAsync: vi.fn().mockResolvedValue(undefined),
     error: null,
   }),
   useDeleteCuratedStop: () => ({
+    mutateAsync: vi.fn().mockResolvedValue(undefined),
+    error: null,
+  }),
+  useAddOrUpdateCuratedStop: () => ({
     mutateAsync: vi.fn().mockResolvedValue(undefined),
     error: null,
   }),

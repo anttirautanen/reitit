@@ -27,26 +27,14 @@ vi.mock("../route/components/StaleIndicator", () => ({
   StaleIndicator: () => null,
 }))
 vi.mock("../route/components/StopCardsLayer", () => ({
-  StopCardsLayer: ({
-    onCardClick,
-    onCardRemove,
-  }: {
-    onCardClick?: (stopId: string) => void
-    onCardRemove?: (stopId: string) => void
-  }) => (
-    <>
-      <button data-testid="trigger-edit" onClick={() => onCardClick?.("HSL:1234")}>
-        trigger
-      </button>
-      <button data-testid="trigger-remove" onClick={() => onCardRemove?.("HSL:1234")}>
-        trigger remove
-      </button>
-    </>
-  ),
+  StopCardsLayer: () => null,
 }))
-
 vi.mock("../route/components/AddStopMode", () => ({
-  AddStopMode: () => null,
+  AddStopMode: ({ onPickStop }: { onPickStop: (stopId: string) => void }) => (
+    <button data-testid="trigger-pick" onClick={() => { onPickStop("HSL:NEW") }}>
+      pick stop
+    </button>
+  ),
 }))
 
 vi.mock("../route/api", () => ({
@@ -77,15 +65,16 @@ const fakeRoute: ApiRoute = {
   name: "Test route",
   origin: null,
   destination: null,
-  curatedStops: [{ stopId: "HSL:1234", lines: ["HSL:LINE-A"] }],
+  curatedStops: [],
 }
 
 const fakeStops = [
-  { gtfsId: "HSL:1234", name: "Stop Name", lat: 60.0, lon: 24.0 },
+  { gtfsId: "HSL:NEW", name: "New Stop", lat: 60.0, lon: 24.0 },
 ]
 
 let updateStub: MutationStub
 let deleteStub: MutationStub
+let addStub: MutationStub
 
 function renderView() {
   return render(
@@ -97,10 +86,11 @@ function renderView() {
   )
 }
 
-describe("Edit-flow integration", () => {
+describe("Add-flow integration", () => {
   beforeEach(() => {
     updateStub = stubMutation()
     deleteStub = stubMutation()
+    addStub = stubMutation()
     vi.mocked(useUpdateCuratedLines).mockReturnValue(
       updateStub as unknown as ReturnType<typeof useUpdateCuratedLines>,
     )
@@ -108,7 +98,7 @@ describe("Edit-flow integration", () => {
       deleteStub as unknown as ReturnType<typeof useDeleteCuratedStop>,
     )
     vi.mocked(useAddOrUpdateCuratedStop).mockReturnValue(
-      stubMutation() as unknown as ReturnType<typeof useAddOrUpdateCuratedStop>,
+      addStub as unknown as ReturnType<typeof useAddOrUpdateCuratedStop>,
     )
     vi.mocked(useStopLinesQuery).mockReturnValue({
       data: lines,
@@ -122,69 +112,46 @@ describe("Edit-flow integration", () => {
     vi.resetAllMocks()
   })
 
-  it("opens the LinePicker with the curated stop's name and lines when the card is tapped", () => {
+  it("toggles the top-bar label to Done when add-stop mode is active", () => {
     renderView()
-    fireEvent.click(screen.getByTestId("trigger-edit"))
-    expect(screen.getByText("Stop Name")).toBeInTheDocument()
-    // The pre-selected line should be aria-pressed=true.
-    const rowA = screen.getByRole("button", { name: "A" })
-    expect(rowA).toHaveAttribute("aria-pressed", "true")
+    expect(screen.getByRole("button", { name: /\+ add stop/i })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: /\+ add stop/i }))
+    expect(screen.getByRole("button", { name: /done/i })).toBeInTheDocument()
+    expect(screen.queryByTestId("trigger-pick")).toBeInTheDocument()
   })
 
-  it("calls useUpdateCuratedLines when saving with one or more lines", async () => {
+  it("calls useAddOrUpdateCuratedStop with the right vars after picking a stop and saving", async () => {
     renderView()
-    fireEvent.click(screen.getByTestId("trigger-edit"))
-    // Toggle B on, so selection = [A, B].
-    fireEvent.click(screen.getByRole("button", { name: "B" }))
-    fireEvent.click(screen.getByRole("button", { name: /save/i }))
-    await waitFor(() => {
-      expect(updateStub.mutateAsync).toHaveBeenCalledTimes(1)
-    })
-    expect(deleteStub.mutateAsync).not.toHaveBeenCalled()
-    const args = updateStub.mutateAsync.mock.calls[0][0] as {
-      routeId: number
-      stopId: string
-      lines: string[]
-    }
-    expect(args.routeId).toBe(7)
-    expect(args.stopId).toBe("HSL:1234")
-    expect([...args.lines].sort()).toEqual(["HSL:LINE-A", "HSL:LINE-B"])
-  })
-
-  it("calls useDeleteCuratedStop and not useUpdateCuratedLines when saving with zero lines", async () => {
-    renderView()
-    fireEvent.click(screen.getByTestId("trigger-edit"))
-    // Toggle A off, so selection = [].
+    // Enter add-stop mode.
+    fireEvent.click(screen.getByRole("button", { name: /\+ add stop/i }))
+    // Pick a non-curated stop via the mocked layer.
+    fireEvent.click(screen.getByTestId("trigger-pick"))
+    // Picker opens for the new stop.
+    expect(screen.getByText("New Stop")).toBeInTheDocument()
+    // Tick line A.
     fireEvent.click(screen.getByRole("button", { name: "A" }))
     fireEvent.click(screen.getByRole("button", { name: /save/i }))
+
     await waitFor(() => {
-      expect(deleteStub.mutateAsync).toHaveBeenCalledTimes(1)
+      expect(addStub.mutateAsync).toHaveBeenCalledTimes(1)
     })
     expect(updateStub.mutateAsync).not.toHaveBeenCalled()
-    expect(deleteStub.mutateAsync).toHaveBeenCalledWith({
+    expect(deleteStub.mutateAsync).not.toHaveBeenCalled()
+    expect(addStub.mutateAsync).toHaveBeenCalledWith({
       routeId: 7,
-      stopId: "HSL:1234",
+      stopId: "HSL:NEW",
+      lines: ["HSL:LINE-A"],
     })
   })
 
-  it("calls useDeleteCuratedStop when onCardRemove fires from the StopCardsLayer", async () => {
+  it("exits add-stop mode and closes the picker when Done is clicked", () => {
     renderView()
-    fireEvent.click(screen.getByTestId("trigger-remove"))
-    await waitFor(() => {
-      expect(deleteStub.mutateAsync).toHaveBeenCalledTimes(1)
-    })
-    expect(updateStub.mutateAsync).not.toHaveBeenCalled()
-    expect(deleteStub.mutateAsync).toHaveBeenCalledWith({
-      routeId: 7,
-      stopId: "HSL:1234",
-    })
-  })
-
-  it("hides the picker when Cancel is clicked", () => {
-    renderView()
-    fireEvent.click(screen.getByTestId("trigger-edit"))
-    expect(screen.getByText("Stop Name")).toBeInTheDocument()
-    fireEvent.click(screen.getByRole("button", { name: /cancel/i }))
-    expect(screen.queryByText("Stop Name")).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: /\+ add stop/i }))
+    fireEvent.click(screen.getByTestId("trigger-pick"))
+    expect(screen.getByText("New Stop")).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: /done/i }))
+    expect(screen.queryByText("New Stop")).not.toBeInTheDocument()
+    expect(screen.queryByTestId("trigger-pick")).not.toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /\+ add stop/i })).toBeInTheDocument()
   })
 })

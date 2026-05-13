@@ -1,7 +1,12 @@
 import { use, useCallback, useState } from "react"
 import { MapView } from "../map/MapView"
 import { StopsContext } from "../stops/StopsContext"
-import { useDeleteCuratedStop, useUpdateCuratedLines } from "./api"
+import {
+  useAddOrUpdateCuratedStop,
+  useDeleteCuratedStop,
+  useUpdateCuratedLines,
+} from "./api"
+import { AddStopMode } from "./components/AddStopMode"
 import { EmptyState } from "./components/EmptyState"
 import { LinePicker } from "./components/LinePicker"
 import { StopCardsLayer } from "./components/StopCardsLayer"
@@ -20,12 +25,20 @@ interface EditingStop {
   initialSelected: string[]
 }
 
+interface AddingStop {
+  stopId: string
+  stopName: string
+}
+
 export const RouteView = ({ onAddStop }: RouteViewProps) => {
   const { selectedRoute } = use(RouteContext)
   const { stops } = use(StopsContext)
   const [editing, setEditing] = useState<EditingStop | null>(null)
+  const [addStopMode, setAddStopMode] = useState(false)
+  const [addingStop, setAddingStop] = useState<AddingStop | null>(null)
   const updateLines = useUpdateCuratedLines()
   const deleteStop = useDeleteCuratedStop()
+  const addOrUpdateStop = useAddOrUpdateCuratedStop()
 
   const handleCardClick = (stopId: string) => {
     const curated = selectedRoute.curatedStops.find((c) => c.stopId === stopId)
@@ -53,16 +66,52 @@ export const RouteView = ({ onAddStop }: RouteViewProps) => {
     setEditing(null)
   }
 
-  const saveError = updateLines.error?.message ?? deleteStop.error?.message ?? null
+  const handlePickStop = useCallback(
+    (stopId: string) => {
+      const stop = stops.find((s) => s.gtfsId === stopId)
+      const stopName = stop?.name ?? stopId
+      setAddingStop({ stopId, stopName })
+    },
+    [stops],
+  )
+
+  const handleAddSave = async (newLines: string[]) => {
+    if (!addingStop) return
+    if (newLines.length === 0) {
+      setAddingStop(null)
+      return
+    }
+    await addOrUpdateStop.mutateAsync({
+      routeId: selectedRoute.id,
+      stopId: addingStop.stopId,
+      lines: newLines,
+    })
+    setAddingStop(null)
+  }
+
+  const toggleAddStopMode = () => {
+    setAddStopMode((prev) => {
+      const next = !prev
+      if (!next) {
+        setAddingStop(null)
+      }
+      return next
+    })
+    onAddStop?.()
+  }
+
+  const editSaveError = updateLines.error?.message ?? deleteStop.error?.message ?? null
+  const addSaveError = addOrUpdateStop.error?.message ?? null
 
   return (
     <>
-      <TopBar onAddStop={onAddStop} />
+      <TopBar onAddStop={toggleAddStopMode} addStopMode={addStopMode} />
       <MapView />
       <StopsLayer />
       <StopCardsLayer onCardClick={handleCardClick} onCardRemove={handleCardRemove} />
       <VehiclesLayer />
       <EmptyState />
+      {addStopMode ? <AddStopMode onPickStop={handlePickStop} /> : null}
       {editing ? (
         <LinePicker
           stopId={editing.stopId}
@@ -73,7 +122,20 @@ export const RouteView = ({ onAddStop }: RouteViewProps) => {
           onCancel={() => {
             setEditing(null)
           }}
-          saveError={saveError}
+          saveError={editSaveError}
+        />
+      ) : null}
+      {addingStop ? (
+        <LinePicker
+          stopId={addingStop.stopId}
+          stopName={addingStop.stopName}
+          mode="add"
+          initialSelected={[]}
+          onSave={handleAddSave}
+          onCancel={() => {
+            setAddingStop(null)
+          }}
+          saveError={addSaveError}
         />
       ) : null}
     </>
