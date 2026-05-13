@@ -14,8 +14,8 @@ export const RouteView = ({ onAddStop }: RouteViewProps) => {
       <TopBar onAddStop={onAddStop} />
       <MapView />
       <StopsLayer />
-      <VehiclesLayer />
       <StopCardsLayer />
+      <VehiclesLayer />
     </>
   )
 }
