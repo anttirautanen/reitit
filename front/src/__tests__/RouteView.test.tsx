@@ -24,6 +24,10 @@ vi.mock("../route/components/StaleIndicator", () => ({
   StaleIndicator: () => null,
 }))
 
+vi.mock("../route/components/EmptyState", () => ({
+  EmptyState: () => null,
+}))
+
 interface RenderOptions {
   selectedRoute: ApiRoute
   onAddStop?: () => void

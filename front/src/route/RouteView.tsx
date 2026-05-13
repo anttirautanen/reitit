@@ -1,4 +1,5 @@
 import { MapView } from "../map/MapView"
+import { EmptyState } from "./components/EmptyState"
 import { StopCardsLayer } from "./components/StopCardsLayer"
 import { StopsLayer } from "./components/StopsLayer"
 import { TopBar } from "./components/TopBar"
@@ -16,6 +17,7 @@ export const RouteView = ({ onAddStop }: RouteViewProps) => {
       <StopsLayer />
       <StopCardsLayer />
       <VehiclesLayer />
+      <EmptyState />
     </>
   )
 }
