@@ -20,6 +20,10 @@ vi.mock("../route/components/VehiclesLayer", () => ({
   VehiclesLayer: () => null,
 }))
 
+vi.mock("../route/components/StaleIndicator", () => ({
+  StaleIndicator: () => null,
+}))
+
 interface RenderOptions {
   selectedRoute: ApiRoute
   onAddStop?: () => void
