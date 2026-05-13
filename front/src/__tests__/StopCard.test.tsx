@@ -1,5 +1,5 @@
-import { afterEach, describe, expect, it } from "vitest"
-import { cleanup, render, screen } from "@testing-library/react"
+import { afterEach, describe, expect, it, vi } from "vitest"
+import { cleanup, fireEvent, render, screen } from "@testing-library/react"
 import type { ApiDeparture } from "@reitit/back/src/api"
 import { StopCard, type StopCardLine } from "../route/components/StopCard"
 
@@ -110,6 +110,27 @@ describe("StopCard", () => {
     expect(next.textContent).toBe(expected)
     expect(next.textContent).not.toContain("-")
     expect(next.textContent).not.toContain("min")
+  })
+
+  it("does not expose a button role when onClick is omitted", () => {
+    render(<StopCard stopName="Test stop" lines={[line("HSL:1071", "71", [])]} />)
+    expect(screen.queryByRole("button")).not.toBeInTheDocument()
+  })
+
+  it("fires onClick on click and on Enter/Space key presses when clickable", () => {
+    const onClick = vi.fn()
+    render(
+      <StopCard
+        stopName="Test stop"
+        lines={[line("HSL:1071", "71", [])]}
+        onClick={onClick}
+      />,
+    )
+    const card = screen.getByRole("button", { name: /test stop/i })
+    fireEvent.click(card)
+    fireEvent.keyDown(card, { key: "Enter" })
+    fireEvent.keyDown(card, { key: " " })
+    expect(onClick).toHaveBeenCalledTimes(3)
   })
 
   it("renders placeholder dots when a line has no departures yet", () => {

@@ -1,3 +1,4 @@
+import type { KeyboardEvent as ReactKeyboardEvent } from "react"
 import type { ApiDeparture } from "@reitit/back/src/api"
 
 // Placeholder colour heuristic until ApiStopLine.mode is plumbed through (Task 22).
@@ -21,6 +22,8 @@ interface StopCardProps {
   lines: StopCardLine[]
   /** Override "now" for tests. Production callers omit this. */
   now?: Date
+  /** When provided, the card becomes activatable (click + keyboard). */
+  onClick?: () => void
 }
 
 function formatDepartureTime(iso: string, now: Date): string {
@@ -34,10 +37,25 @@ function formatDepartureTime(iso: string, now: Date): string {
 
 const PLACEHOLDER = "…"
 
-export const StopCard = ({ stopName, lines, now }: StopCardProps) => {
+export const StopCard = ({ stopName, lines, now, onClick }: StopCardProps) => {
   const nowDate = now ?? new Date()
+  const isClickable = onClick !== undefined
+  const handleKeyDown = isClickable
+    ? (event: ReactKeyboardEvent<HTMLDivElement>) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault()
+          onClick()
+        }
+      }
+    : undefined
   return (
-    <div className="bg-white rounded-md shadow-md p-3 max-w-[220px]">
+    <div
+      className={`bg-white rounded-md shadow-md p-3 max-w-[220px]${isClickable ? " cursor-pointer" : ""}`}
+      role={isClickable ? "button" : undefined}
+      tabIndex={isClickable ? 0 : undefined}
+      onClick={onClick}
+      onKeyDown={handleKeyDown}
+    >
       <div className="text-sm font-bold text-black truncate">{stopName}</div>
       <div className="flex flex-col gap-1 mt-1">
         {lines.map((line) => {

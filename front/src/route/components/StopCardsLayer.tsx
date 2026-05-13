@@ -14,7 +14,11 @@ interface OverlayEntry {
   element: HTMLDivElement
 }
 
-export const StopCardsLayer = () => {
+interface StopCardsLayerProps {
+  onCardClick?: (stopId: string) => void
+}
+
+export const StopCardsLayer = ({ onCardClick }: StopCardsLayerProps = {}) => {
   const { map } = use(MapContext)
   const { selectedRoute } = use(RouteContext)
   const { key, entries: resolvedEntries } = useCuratedStopsResolved()
@@ -23,6 +27,12 @@ export const StopCardsLayer = () => {
 
   // Roots keyed by stopId so we can re-render with fresh departures without rebuilding overlays.
   const overlaysByStopId = useRef<Map<string, OverlayEntry>>(new Map())
+
+  // Stable handler ref: lets us swap callbacks without tearing down overlays.
+  const onCardClickRef = useRef(onCardClick)
+  useEffect(() => {
+    onCardClickRef.current = onCardClick
+  }, [onCardClick])
 
   // Rebuild overlays whenever the curated set changes (key changes).
   useEffect(() => {
@@ -79,7 +89,14 @@ export const StopCardsLayer = () => {
         }
         return { gtfsId: lineGtfsId, shortName: null, departures: [] }
       })
-      entry.root.render(<StopCard stopName={stop.name} lines={lines} />)
+      const stopId = curatedStop.stopId
+      entry.root.render(
+        <StopCard
+          stopName={stop.name}
+          lines={lines}
+          onClick={() => onCardClickRef.current?.(stopId)}
+        />,
+      )
     }
   }, [key, resolvedEntries, departuresData])
 

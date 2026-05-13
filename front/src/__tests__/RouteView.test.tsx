@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react"
 import type { ApiRoute } from "@reitit/back/src/api"
 import { RouteContext } from "../route/RouteContext"
 import { RouteView } from "../route/RouteView"
+import { StopsContext } from "../stops/StopsContext"
 
 vi.mock("../map/MapView", () => ({
   MapView: () => <div data-testid="map-view-stub" />,
@@ -28,6 +29,17 @@ vi.mock("../route/components/EmptyState", () => ({
   EmptyState: () => null,
 }))
 
+vi.mock("../route/api", () => ({
+  useUpdateCuratedLines: () => ({
+    mutateAsync: vi.fn().mockResolvedValue(undefined),
+    error: null,
+  }),
+  useDeleteCuratedStop: () => ({
+    mutateAsync: vi.fn().mockResolvedValue(undefined),
+    error: null,
+  }),
+}))
+
 interface RenderOptions {
   selectedRoute: ApiRoute
   onAddStop?: () => void
@@ -35,9 +47,11 @@ interface RenderOptions {
 
 function renderWithProviders({ selectedRoute, onAddStop }: RenderOptions) {
   return render(
-    <RouteContext value={{ selectedRoute }}>
-      <RouteView onAddStop={onAddStop} />
-    </RouteContext>,
+    <StopsContext value={{ stops: [] }}>
+      <RouteContext value={{ selectedRoute }}>
+        <RouteView onAddStop={onAddStop} />
+      </RouteContext>
+    </StopsContext>,
   )
 }
 
