@@ -12,6 +12,7 @@ import { LinePicker } from "./components/LinePicker"
 import { StopCardsLayer } from "./components/StopCardsLayer"
 import { StopsLayer } from "./components/StopsLayer"
 import { TopBar } from "./components/TopBar"
+import { useMapFitToCurated } from "./components/useMapFitToCurated"
 import { VehiclesLayer } from "./components/VehiclesLayer"
 import { RouteContext } from "./RouteContext"
 
@@ -39,6 +40,7 @@ export const RouteView = ({ onAddStop }: RouteViewProps) => {
   const updateLines = useUpdateCuratedLines()
   const deleteStop = useDeleteCuratedStop()
   const addOrUpdateStop = useAddOrUpdateCuratedStop()
+  useMapFitToCurated()
 
   const handleCardClick = (stopId: string) => {
     const curated = selectedRoute.curatedStops.find((c) => c.stopId === stopId)

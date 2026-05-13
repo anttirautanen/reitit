@@ -48,6 +48,9 @@ vi.mock("../route/components/StopCardsLayer", () => ({
 vi.mock("../route/components/AddStopMode", () => ({
   AddStopMode: () => null,
 }))
+vi.mock("../route/components/useMapFitToCurated", () => ({
+  useMapFitToCurated: () => undefined,
+}))
 
 vi.mock("../route/api", () => ({
   useUpdateCuratedLines: vi.fn(),
