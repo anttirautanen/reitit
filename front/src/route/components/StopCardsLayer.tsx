@@ -16,9 +16,10 @@ interface OverlayEntry {
 
 interface StopCardsLayerProps {
   onCardClick?: (stopId: string) => void
+  onCardRemove?: (stopId: string) => void
 }
 
-export const StopCardsLayer = ({ onCardClick }: StopCardsLayerProps = {}) => {
+export const StopCardsLayer = ({ onCardClick, onCardRemove }: StopCardsLayerProps = {}) => {
   const { map } = use(MapContext)
   const { selectedRoute } = use(RouteContext)
   const { key, entries: resolvedEntries } = useCuratedStopsResolved()
@@ -33,6 +34,10 @@ export const StopCardsLayer = ({ onCardClick }: StopCardsLayerProps = {}) => {
   useEffect(() => {
     onCardClickRef.current = onCardClick
   }, [onCardClick])
+  const onCardRemoveRef = useRef(onCardRemove)
+  useEffect(() => {
+    onCardRemoveRef.current = onCardRemove
+  }, [onCardRemove])
 
   // Rebuild overlays whenever the curated set changes (key changes).
   useEffect(() => {
@@ -95,6 +100,7 @@ export const StopCardsLayer = ({ onCardClick }: StopCardsLayerProps = {}) => {
           stopName={stop.name}
           lines={lines}
           onClick={() => onCardClickRef.current?.(stopId)}
+          onRemove={() => onCardRemoveRef.current?.(stopId)}
         />,
       )
     }

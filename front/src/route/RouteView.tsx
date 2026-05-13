@@ -1,4 +1,4 @@
-import { use, useState } from "react"
+import { use, useCallback, useState } from "react"
 import { MapView } from "../map/MapView"
 import { StopsContext } from "../stops/StopsContext"
 import { useDeleteCuratedStop, useUpdateCuratedLines } from "./api"
@@ -35,6 +35,13 @@ export const RouteView = ({ onAddStop }: RouteViewProps) => {
     setEditing({ stopId, stopName, initialSelected: curated.lines })
   }
 
+  const handleCardRemove = useCallback(
+    (stopId: string) => {
+      void deleteStop.mutateAsync({ routeId: selectedRoute.id, stopId })
+    },
+    [deleteStop, selectedRoute.id],
+  )
+
   const handleSave = async (newLines: string[]) => {
     if (!editing) return
     const routeId = selectedRoute.id
@@ -53,7 +60,7 @@ export const RouteView = ({ onAddStop }: RouteViewProps) => {
       <TopBar onAddStop={onAddStop} />
       <MapView />
       <StopsLayer />
-      <StopCardsLayer onCardClick={handleCardClick} />
+      <StopCardsLayer onCardClick={handleCardClick} onCardRemove={handleCardRemove} />
       <VehiclesLayer />
       <EmptyState />
       {editing ? (

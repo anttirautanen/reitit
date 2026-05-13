@@ -133,6 +133,47 @@ describe("StopCard", () => {
     expect(onClick).toHaveBeenCalledTimes(3)
   })
 
+  it("renders an accessible × button when onRemove is provided and fires the handler on click", () => {
+    const onRemove = vi.fn()
+    render(
+      <StopCard
+        stopName="Test stop"
+        lines={[line("HSL:1071", "71", [])]}
+        onRemove={onRemove}
+      />,
+    )
+    const removeButton = screen.getByRole("button", { name: /remove stop/i })
+    expect(removeButton.textContent).toBe("×")
+    fireEvent.click(removeButton)
+    expect(onRemove).toHaveBeenCalledTimes(1)
+  })
+
+  it("clicking the × does not bubble up to the card's onClick", () => {
+    const onClick = vi.fn()
+    const onRemove = vi.fn()
+    render(
+      <StopCard
+        stopName="Test stop"
+        lines={[line("HSL:1071", "71", [])]}
+        onClick={onClick}
+        onRemove={onRemove}
+      />,
+    )
+    const removeButton = screen.getByRole("button", { name: /remove stop/i })
+    fireEvent.click(removeButton)
+    expect(onRemove).toHaveBeenCalledTimes(1)
+    expect(onClick).not.toHaveBeenCalled()
+    // Clicking elsewhere on the card still triggers the card's onClick.
+    const card = screen.getByRole("button", { name: /test stop/i })
+    fireEvent.click(card)
+    expect(onClick).toHaveBeenCalledTimes(1)
+  })
+
+  it("does not render the × button when onRemove is omitted", () => {
+    render(<StopCard stopName="Test stop" lines={[line("HSL:1071", "71", [])]} />)
+    expect(screen.queryByRole("button", { name: /remove stop/i })).not.toBeInTheDocument()
+  })
+
   it("renders placeholder dots when a line has no departures yet", () => {
     render(
       <StopCard stopName="Test" lines={[line("HSL:1071", "71", [])]} now={new Date()} />,

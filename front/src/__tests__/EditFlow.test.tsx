@@ -26,13 +26,21 @@ vi.mock("../route/components/StaleIndicator", () => ({
   StaleIndicator: () => null,
 }))
 vi.mock("../route/components/StopCardsLayer", () => ({
-  StopCardsLayer: ({ onCardClick }: { onCardClick?: (stopId: string) => void }) => (
-    <button
-      data-testid="trigger-edit"
-      onClick={() => onCardClick?.("HSL:1234")}
-    >
-      trigger
-    </button>
+  StopCardsLayer: ({
+    onCardClick,
+    onCardRemove,
+  }: {
+    onCardClick?: (stopId: string) => void
+    onCardRemove?: (stopId: string) => void
+  }) => (
+    <>
+      <button data-testid="trigger-edit" onClick={() => onCardClick?.("HSL:1234")}>
+        trigger
+      </button>
+      <button data-testid="trigger-remove" onClick={() => onCardRemove?.("HSL:1234")}>
+        trigger remove
+      </button>
+    </>
   ),
 }))
 
@@ -140,6 +148,19 @@ describe("Edit-flow integration", () => {
     // Toggle A off, so selection = [].
     fireEvent.click(screen.getByRole("button", { name: "A" }))
     fireEvent.click(screen.getByRole("button", { name: /save/i }))
+    await waitFor(() => {
+      expect(deleteStub.mutateAsync).toHaveBeenCalledTimes(1)
+    })
+    expect(updateStub.mutateAsync).not.toHaveBeenCalled()
+    expect(deleteStub.mutateAsync).toHaveBeenCalledWith({
+      routeId: 7,
+      stopId: "HSL:1234",
+    })
+  })
+
+  it("calls useDeleteCuratedStop when onCardRemove fires from the StopCardsLayer", async () => {
+    renderView()
+    fireEvent.click(screen.getByTestId("trigger-remove"))
     await waitFor(() => {
       expect(deleteStub.mutateAsync).toHaveBeenCalledTimes(1)
     })

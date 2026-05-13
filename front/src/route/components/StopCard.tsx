@@ -1,4 +1,7 @@
-import type { KeyboardEvent as ReactKeyboardEvent } from "react"
+import type {
+  KeyboardEvent as ReactKeyboardEvent,
+  MouseEvent as ReactMouseEvent,
+} from "react"
 import type { ApiDeparture } from "@reitit/back/src/api"
 
 // Placeholder colour heuristic until ApiStopLine.mode is plumbed through (Task 22).
@@ -24,6 +27,8 @@ interface StopCardProps {
   now?: Date
   /** When provided, the card becomes activatable (click + keyboard). */
   onClick?: () => void
+  /** When provided, renders a × in the corner that calls this on click. */
+  onRemove?: () => void
 }
 
 function formatDepartureTime(iso: string, now: Date): string {
@@ -37,7 +42,7 @@ function formatDepartureTime(iso: string, now: Date): string {
 
 const PLACEHOLDER = "…"
 
-export const StopCard = ({ stopName, lines, now, onClick }: StopCardProps) => {
+export const StopCard = ({ stopName, lines, now, onClick, onRemove }: StopCardProps) => {
   const nowDate = now ?? new Date()
   const isClickable = onClick !== undefined
   const handleKeyDown = isClickable
@@ -48,14 +53,39 @@ export const StopCard = ({ stopName, lines, now, onClick }: StopCardProps) => {
         }
       }
     : undefined
+  const handleRemoveMouseDown = onRemove
+    ? (event: ReactMouseEvent<HTMLButtonElement>) => {
+        // Prevent the underlying card from receiving the mousedown, which would
+        // otherwise start a tap-to-edit interaction before the click handler fires.
+        event.stopPropagation()
+      }
+    : undefined
+  const handleRemoveClick = onRemove
+    ? (event: ReactMouseEvent<HTMLButtonElement>) => {
+        event.stopPropagation()
+        event.preventDefault()
+        onRemove()
+      }
+    : undefined
   return (
     <div
-      className={`bg-white rounded-md shadow-md p-3 max-w-[220px]${isClickable ? " cursor-pointer" : ""}`}
+      className={`relative bg-white rounded-md shadow-md p-3 max-w-[220px]${isClickable ? " cursor-pointer" : ""}`}
       role={isClickable ? "button" : undefined}
       tabIndex={isClickable ? 0 : undefined}
       onClick={onClick}
       onKeyDown={handleKeyDown}
     >
+      {onRemove ? (
+        <button
+          type="button"
+          aria-label="Remove stop"
+          className="absolute top-1 right-1 text-xs leading-none text-gray-500 hover:text-gray-800 cursor-pointer px-1 rounded"
+          onMouseDown={handleRemoveMouseDown}
+          onClick={handleRemoveClick}
+        >
+          ×
+        </button>
+      ) : null}
       <div className="text-sm font-bold text-black truncate">{stopName}</div>
       <div className="flex flex-col gap-1 mt-1">
         {lines.map((line) => {
