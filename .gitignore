@@ -27,3 +27,6 @@ dist-ssr
 back/drizzle/meta
 .superpowers/
 docs/superpowers/
+
+# Local, uncommitted notes
+CLAUDE.local.md
