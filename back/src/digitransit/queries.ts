@@ -41,6 +41,13 @@ export const STOP_PATTERNS_QUERY = `
  * carried via the parent `pattern.directionId` (the `vehiclePosition` itself
  * does not always carry direction in Digitransit's schema), so the handler
  * threads `directionId` from the surrounding pattern through to each vehicle.
+ *
+ * `stopRelationship` reports the stop the vehicle is currently related to (the
+ * stop it is stopped at, incoming to, or in transit to). Combined with the
+ * trip's `stoptimes` (each carrying a monotonic `stopPosition`), it lets the
+ * handler tell whether a vehicle has already passed a curated stop — see the
+ * passed-stop filter. Both arrive inline so the filter adds no extra round
+ * trips.
  */
 export const VEHICLE_POSITIONS_QUERY = `
   query VehiclePositions($routeIds: [String!]!) {
@@ -51,10 +58,22 @@ export const VEHICLE_POSITIONS_QUERY = `
         directionId
         vehiclePositions {
           vehicleId
+          stopRelationship {
+            status
+            stop {
+              gtfsId
+            }
+          }
           trip {
             route {
               gtfsId
               shortName
+            }
+            stoptimes {
+              stopPosition
+              stop {
+                gtfsId
+              }
             }
           }
           lat

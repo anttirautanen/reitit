@@ -6,7 +6,8 @@ import { routeStopsTable, routesTable } from "../db/schema.js"
 import { DigitransitClient, DigitransitUpstreamError } from "../digitransit/client.js"
 import { VEHICLE_POSITIONS_QUERY } from "../digitransit/queries.js"
 import { cacheKeyForRoute, getOrFetch } from "../realtime/cache.js"
-import { CuratedRow, LineDirectionTuple, resolveCuratedSet } from "../realtime/curatedSet.js"
+import { CuratedRow, CuratedStopsForLineDirection, LineDirectionTuple, resolveCuratedSet } from "../realtime/curatedSet.js"
+import { keepVehiclePastCuratedStops } from "../realtime/passedStopFilter.js"
 import { createPatternResolver } from "../realtime/patternResolver.js"
 import { parseRouteId } from "./parseRouteId.js"
 
@@ -17,13 +18,27 @@ import { parseRouteId } from "./parseRouteId.js"
  */
 const VEHICLES_TTL_MS = 3 * 1000
 
+interface TripStoptimeRaw {
+  stopPosition: number | null
+  stop: {
+    gtfsId: string
+  } | null
+}
+
 interface VehiclePositionRaw {
   vehicleId: string | null
+  stopRelationship: {
+    status: string | null
+    stop: {
+      gtfsId: string
+    } | null
+  } | null
   trip: {
     route: {
       gtfsId: string
       shortName: string | null
     } | null
+    stoptimes: TripStoptimeRaw[] | null
   } | null
   lat: number | null
   lon: number | null
@@ -121,7 +136,7 @@ export function registerVehiclesRoutes(router: Router, deps: { db: NodePgDatabas
     try {
       const response = await getOrFetch<VehiclesApiResponse>(key, VEHICLES_TTL_MS, async () => {
         const data = await digitransitClient.query<VehiclePositionsQueryResponse>(VEHICLE_POSITIONS_QUERY, { routeIds })
-        return reshapeVehicles(data, lineDirections)
+        return reshapeVehicles(data, resolved.lineDirections, resolved.curatedStopsByLineDirection)
       })
       res.send(response)
     } catch (error) {
@@ -135,13 +150,23 @@ export function registerVehiclesRoutes(router: Router, deps: { db: NodePgDatabas
   })
 }
 
-function reshapeVehicles(data: VehiclePositionsQueryResponse, lineDirections: LineDirectionTuple[]): VehiclesApiResponse {
-  // Build the resolved-set lookups for the defensive filter.
+function reshapeVehicles(
+  data: VehiclePositionsQueryResponse,
+  lineDirections: LineDirectionTuple[],
+  curatedStopsByLineDirection: CuratedStopsForLineDirection[]
+): VehiclesApiResponse {
+  // Build the resolved-set lookups for the defensive direction filter.
   const allowedLines = new Set<string>()
   const allowedKey = new Set<string>()
   for (const tuple of lineDirections) {
     allowedLines.add(tuple.lineGtfsId)
-    allowedKey.add(`${tuple.lineGtfsId}\u0000${String(tuple.direction)}`)
+    allowedKey.add(directionKey(tuple.lineGtfsId, tuple.direction))
+  }
+
+  // Curated stop ids per (line, direction), used by the passed-stop filter.
+  const curatedStopsByKey = new Map<string, Set<string>>()
+  for (const group of curatedStopsByLineDirection) {
+    curatedStopsByKey.set(directionKey(group.lineGtfsId, group.direction), new Set(group.stopIds))
   }
 
   const vehicles: ApiVehicle[] = []
@@ -151,13 +176,16 @@ function reshapeVehicles(data: VehiclePositionsQueryResponse, lineDirections: Li
     for (const pattern of route.patterns ?? []) {
       const direction = pattern.directionId
       if (direction !== 0 && direction !== 1) continue
-      if (!allowedKey.has(`${route.gtfsId}\u0000${String(direction)}`)) continue
+      const key = directionKey(route.gtfsId, direction)
+      if (!allowedKey.has(key)) continue
+      const curatedStopIds = curatedStopsByKey.get(key) ?? new Set<string>()
       for (const position of pattern.vehiclePositions ?? []) {
         if (position.vehicleId === null) continue
         if (position.lat === null || position.lon === null) continue
         // The trip's route gtfs id may differ defensively; require it to match.
         const tripRouteGtfsId = position.trip?.route?.gtfsId
         if (tripRouteGtfsId !== undefined && tripRouteGtfsId !== route.gtfsId) continue
+        if (!keepByPassedStop(position, curatedStopIds)) continue
         const lineShortName = position.trip?.route?.shortName ?? route.shortName ?? ""
         vehicles.push({
           id: position.vehicleId,
@@ -173,4 +201,36 @@ function reshapeVehicles(data: VehiclePositionsQueryResponse, lineDirections: Li
   }
 
   return { vehicles }
+}
+
+/**
+ * Resolves a vehicle's trip context into the passed-stop keep/drop decision.
+ * Locates the vehicle's current stop and the curated stops within its own trip
+ * stop sequence, then defers to the pure rule. Missing context resolves to a
+ * keep — the rule is conservative on uncertainty.
+ */
+function keepByPassedStop(position: VehiclePositionRaw, curatedStopIds: Set<string>): boolean {
+  const positionByStop = new Map<string, number>()
+  for (const stoptime of position.trip?.stoptimes ?? []) {
+    const stopGtfsId = stoptime.stop?.gtfsId
+    if (stopGtfsId === undefined || stoptime.stopPosition === null) continue
+    if (!positionByStop.has(stopGtfsId)) {
+      positionByStop.set(stopGtfsId, stoptime.stopPosition)
+    }
+  }
+
+  const currentStopGtfsId = position.stopRelationship?.stop?.gtfsId
+  const currentStopPosition = currentStopGtfsId === undefined ? null : (positionByStop.get(currentStopGtfsId) ?? null)
+
+  const curatedStopPositions: number[] = []
+  for (const stopId of curatedStopIds) {
+    const pos = positionByStop.get(stopId)
+    if (pos !== undefined) curatedStopPositions.push(pos)
+  }
+
+  return keepVehiclePastCuratedStops({ currentStopPosition, curatedStopPositions })
+}
+
+function directionKey(lineGtfsId: string, direction: 0 | 1): string {
+  return `${lineGtfsId} ${String(direction)}`
 }

@@ -35,10 +35,17 @@ export interface LineDirectionTuple {
 
 export type PatternResolver = (stopId: string, lineGtfsId: string) => Promise<LineDirectionTuple[] | null>
 
+export interface CuratedStopsForLineDirection {
+  lineGtfsId: string
+  direction: 0 | 1
+  stopIds: string[]
+}
+
 export interface ResolveResult {
   stopLines: StopLinePair[]
   lineDirections: LineDirectionTuple[]
   unresolved: StopLinePair[]
+  curatedStopsByLineDirection: CuratedStopsForLineDirection[]
 }
 
 export async function resolveCuratedSet(rows: CuratedRow[], resolver: PatternResolver): Promise<ResolveResult> {
@@ -67,6 +74,7 @@ export async function resolveCuratedSet(rows: CuratedRow[], resolver: PatternRes
   //    order, and accumulate the deduplicated direction tuples.
   const unresolved: StopLinePair[] = []
   const directionsByKey = new Map<string, LineDirectionTuple>()
+  const stopsByDirectionKey = new Map<string, CuratedStopsForLineDirection>()
   for (let i = 0; i < uniquePairs.length; i++) {
     const pair = uniquePairs[i]
     const result = resolverResults[i]
@@ -79,18 +87,29 @@ export async function resolveCuratedSet(rows: CuratedRow[], resolver: PatternRes
       if (!directionsByKey.has(key)) {
         directionsByKey.set(key, tuple)
       }
+      let group = stopsByDirectionKey.get(key)
+      if (group === undefined) {
+        group = { lineGtfsId: tuple.lineGtfsId, direction: tuple.direction, stopIds: [] }
+        stopsByDirectionKey.set(key, group)
+      }
+      if (!group.stopIds.includes(pair.stopId)) {
+        group.stopIds.push(pair.stopId)
+      }
     }
   }
 
   // 4. Stable sort by lineGtfsId then direction so callers can compose stable
   //    cache keys.
-  const lineDirections = Array.from(directionsByKey.values()).sort((a, b) => {
+  const byLineThenDirection = (a: { lineGtfsId: string; direction: 0 | 1 }, b: { lineGtfsId: string; direction: 0 | 1 }): number => {
     if (a.lineGtfsId < b.lineGtfsId) return -1
     if (a.lineGtfsId > b.lineGtfsId) return 1
     return a.direction - b.direction
-  })
+  }
 
-  return { stopLines, lineDirections, unresolved }
+  const lineDirections = Array.from(directionsByKey.values()).sort(byLineThenDirection)
+  const curatedStopsByLineDirection = Array.from(stopsByDirectionKey.values()).sort(byLineThenDirection)
+
+  return { stopLines, lineDirections, unresolved, curatedStopsByLineDirection }
 }
 
 function pairKey(stopId: string, lineGtfsId: string): string {

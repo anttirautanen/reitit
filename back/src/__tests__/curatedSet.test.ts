@@ -7,7 +7,7 @@ describe("resolveCuratedSet", () => {
 
     const result = await resolveCuratedSet([], resolver)
 
-    expect(result).toEqual({ stopLines: [], lineDirections: [], unresolved: [] })
+    expect(result).toEqual({ stopLines: [], lineDirections: [], unresolved: [], curatedStopsByLineDirection: [] })
     expect(resolver).not.toHaveBeenCalled()
   })
 
@@ -110,6 +110,41 @@ describe("resolveCuratedSet", () => {
       { lineGtfsId: "HSL:Z", direction: 0 },
       { lineGtfsId: "HSL:Z", direction: 1 },
     ])
+  })
+
+  it("groups the curated stops under each (lineGtfsId, direction), in first-seen order, sorted like lineDirections", async () => {
+    const rows: CuratedRow[] = [
+      { routeId: 1, stopId: "HSL:1", lines: ["HSL:A"] },
+      { routeId: 1, stopId: "HSL:2", lines: ["HSL:A"] },
+      { routeId: 1, stopId: "HSL:3", lines: ["HSL:A"] },
+    ]
+    const resolver: PatternResolver = (stopId, lineGtfsId) => {
+      // HSL:1 and HSL:3 are served in direction 0; HSL:2 in direction 1.
+      const direction: 0 | 1 = stopId === "HSL:2" ? 1 : 0
+      return Promise.resolve([{ lineGtfsId, direction }])
+    }
+
+    const result = await resolveCuratedSet(rows, resolver)
+
+    expect(result.curatedStopsByLineDirection).toEqual([
+      { lineGtfsId: "HSL:A", direction: 0, stopIds: ["HSL:1", "HSL:3"] },
+      { lineGtfsId: "HSL:A", direction: 1, stopIds: ["HSL:2"] },
+    ])
+  })
+
+  it("does not list an unresolved stop under any (lineGtfsId, direction) group", async () => {
+    const rows: CuratedRow[] = [
+      { routeId: 1, stopId: "HSL:1", lines: ["HSL:A"] },
+      { routeId: 1, stopId: "HSL:2", lines: ["HSL:A"] },
+    ]
+    const resolver: PatternResolver = (stopId, lineGtfsId) => {
+      if (stopId === "HSL:2") return Promise.resolve(null)
+      return Promise.resolve([{ lineGtfsId, direction: 0 }])
+    }
+
+    const result = await resolveCuratedSet(rows, resolver)
+
+    expect(result.curatedStopsByLineDirection).toEqual([{ lineGtfsId: "HSL:A", direction: 0, stopIds: ["HSL:1"] }])
   })
 
   it("invokes the resolver at most once per unique (stopId, lineGtfsId) pair within a single call", async () => {

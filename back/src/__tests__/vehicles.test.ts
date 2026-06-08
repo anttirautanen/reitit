@@ -198,6 +198,130 @@ describe("GET /api/routes/:routeId/vehicles", () => {
     })
   })
 
+  it("drops vehicles past every curated stop on their trip and keeps those still approaching one", async () => {
+    const { id: routeId } = await seedRoute({ name: "Route" })
+    await seedRouteStop({ routeId, stopId: "HSL:curated", lines: ["line-A"] })
+
+    // The trip visits S1 (pos 1), the curated stop (pos 2), then S3 (pos 3).
+    const stoptimes = [
+      { stopPosition: 1, stop: { gtfsId: "HSL:S1" } },
+      { stopPosition: 2, stop: { gtfsId: "HSL:curated" } },
+      { stopPosition: 3, stop: { gtfsId: "HSL:S3" } },
+    ]
+    const trip = { route: { gtfsId: "line-A", shortName: "A" }, stoptimes }
+
+    activeClient = fakeClient((query, variables) => {
+      if (query === STOP_PATTERNS_QUERY) {
+        const stopId = variables?.stopId as string
+        if (stopId === "HSL:curated") {
+          return { stop: { patterns: [{ route: { gtfsId: "line-A" }, directionId: 0 }] } }
+        }
+        return { stop: null }
+      }
+      if (query === VEHICLE_POSITIONS_QUERY) {
+        return {
+          routes: [
+            {
+              gtfsId: "line-A",
+              shortName: "A",
+              patterns: [
+                {
+                  directionId: 0,
+                  vehiclePositions: [
+                    {
+                      vehicleId: "v-approaching",
+                      trip,
+                      // In transit to S1 (pos 1); curated stop (pos 2) still ahead -> keep.
+                      stopRelationship: { status: "IN_TRANSIT_TO", stop: { gtfsId: "HSL:S1" } },
+                      lat: 60.1,
+                      lon: 24.9,
+                      heading: 90,
+                      speed: 5,
+                    },
+                    {
+                      vehicleId: "v-at-curated",
+                      trip,
+                      // Stopped at the curated stop (pos 2); equal position -> keep.
+                      stopRelationship: { status: "STOPPED_AT", stop: { gtfsId: "HSL:curated" } },
+                      lat: 60.15,
+                      lon: 24.92,
+                      heading: 90,
+                      speed: 0,
+                    },
+                    {
+                      vehicleId: "v-past",
+                      trip,
+                      // In transit to S3 (pos 3); curated stop (pos 2) already behind -> drop.
+                      stopRelationship: { status: "IN_TRANSIT_TO", stop: { gtfsId: "HSL:S3" } },
+                      lat: 60.2,
+                      lon: 24.95,
+                      heading: 90,
+                      speed: 7,
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        }
+      }
+      throw new Error(`unexpected query: ${query}`)
+    })
+
+    const response = await fetch(`${getServerUrl()}/api/routes/${String(routeId)}/vehicles`)
+    expect(response.status).toBe(200)
+    const body = (await response.json()) as VehiclesApiResponse
+
+    const ids = body.vehicles.map((v) => v.id).sort()
+    expect(ids).toEqual(["v-approaching", "v-at-curated"])
+  })
+
+  it("keeps vehicles whose stop relationship or trip sequence is absent (conservative)", async () => {
+    const { id: routeId } = await seedRoute({ name: "Route" })
+    await seedRouteStop({ routeId, stopId: "HSL:curated", lines: ["line-A"] })
+
+    activeClient = fakeClient((query, variables) => {
+      if (query === STOP_PATTERNS_QUERY) {
+        const stopId = variables?.stopId as string
+        if (stopId === "HSL:curated") {
+          return { stop: { patterns: [{ route: { gtfsId: "line-A" }, directionId: 0 }] } }
+        }
+        return { stop: null }
+      }
+      if (query === VEHICLE_POSITIONS_QUERY) {
+        return {
+          routes: [
+            {
+              gtfsId: "line-A",
+              shortName: "A",
+              patterns: [
+                {
+                  directionId: 0,
+                  vehiclePositions: [
+                    {
+                      vehicleId: "v-no-context",
+                      trip: { route: { gtfsId: "line-A", shortName: "A" } },
+                      lat: 60.1,
+                      lon: 24.9,
+                      heading: 90,
+                      speed: 5,
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        }
+      }
+      throw new Error(`unexpected query: ${query}`)
+    })
+
+    const response = await fetch(`${getServerUrl()}/api/routes/${String(routeId)}/vehicles`)
+    expect(response.status).toBe(200)
+    const body = (await response.json()) as VehiclesApiResponse
+    expect(body.vehicles.map((v) => v.id)).toEqual(["v-no-context"])
+  })
+
   it("serves the second GET from cache (vehicles fetcher called once)", async () => {
     const { id: routeId } = await seedRoute({ name: "Route" })
     await seedRouteStop({ routeId, stopId: "HSL:cache-1", lines: ["line-A"] })
