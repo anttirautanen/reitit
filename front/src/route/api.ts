@@ -1,11 +1,5 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import type {
-  ApiRoute,
-  DeparturesApiResponse,
-  RoutesApiResponse,
-  StopLinesApiResponse,
-  VehiclesApiResponse,
-} from "@reitit/back/src/api"
+import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query"
+import type { ApiRoute, DeparturesApiResponse, RoutesApiResponse, StopLinesApiResponse, VehiclesApiResponse } from "@reitit/back/src/api"
 
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, init)
@@ -63,8 +57,7 @@ export function useRouteWithStops(routeId: number | null): {
 export function useStopLinesQuery(stopId: string | null) {
   return useQuery<StopLinesApiResponse>({
     queryKey: ["stopLines", stopId],
-    queryFn: () =>
-      apiFetch<StopLinesApiResponse>(`/api/stops/${encodeURIComponent(String(stopId))}/lines`),
+    queryFn: () => apiFetch<StopLinesApiResponse>(`/api/stops/${encodeURIComponent(String(stopId))}/lines`),
     enabled: stopId !== null,
     staleTime: 60 * 60 * 1000,
   })
@@ -94,6 +87,19 @@ export function useVehiclesQuery(routeId: number | null) {
   })
 }
 
+/**
+ * After a curated-stop mutation, refresh the route list (which carries the
+ * curated stops) and the route's realtime queries so cards and vehicles
+ * reflect the change. Shared by all three curated-stop mutation hooks.
+ */
+function invalidateRouteRealtime(queryClient: QueryClient, routeId: number): Promise<void> {
+  return Promise.all([
+    queryClient.invalidateQueries({ queryKey: ["routes"] }),
+    queryClient.invalidateQueries({ queryKey: ["departures", routeId] }),
+    queryClient.invalidateQueries({ queryKey: ["vehicles", routeId] }),
+  ]).then(() => undefined)
+}
+
 interface AddOrUpdateCuratedStopVariables {
   routeId: number
   stopId: string
@@ -110,13 +116,7 @@ export function useAddOrUpdateCuratedStop() {
         body: JSON.stringify({ stopId, lines }),
       })
     },
-    onSuccess: async (_data, variables) => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["routes"] }),
-        queryClient.invalidateQueries({ queryKey: ["departures", variables.routeId] }),
-        queryClient.invalidateQueries({ queryKey: ["vehicles", variables.routeId] }),
-      ])
-    },
+    onSuccess: (_data, variables) => invalidateRouteRealtime(queryClient, variables.routeId),
   })
 }
 
@@ -130,22 +130,13 @@ export function useUpdateCuratedLines() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async ({ routeId, stopId, lines }: UpdateCuratedLinesVariables) => {
-      return apiFetch<unknown>(
-        `/api/routes/${String(routeId)}/stops/${encodeURIComponent(stopId)}`,
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ lines }),
-        },
-      )
+      return apiFetch<unknown>(`/api/routes/${String(routeId)}/stops/${encodeURIComponent(stopId)}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lines }),
+      })
     },
-    onSuccess: async (_data, variables) => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["routes"] }),
-        queryClient.invalidateQueries({ queryKey: ["departures", variables.routeId] }),
-        queryClient.invalidateQueries({ queryKey: ["vehicles", variables.routeId] }),
-      ])
-    },
+    onSuccess: (_data, variables) => invalidateRouteRealtime(queryClient, variables.routeId),
   })
 }
 
@@ -158,19 +149,10 @@ export function useDeleteCuratedStop() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async ({ routeId, stopId }: DeleteCuratedStopVariables) => {
-      return apiFetch<unknown>(
-        `/api/routes/${String(routeId)}/stops/${encodeURIComponent(stopId)}`,
-        {
-          method: "DELETE",
-        },
-      )
+      return apiFetch<unknown>(`/api/routes/${String(routeId)}/stops/${encodeURIComponent(stopId)}`, {
+        method: "DELETE",
+      })
     },
-    onSuccess: async (_data, variables) => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["routes"] }),
-        queryClient.invalidateQueries({ queryKey: ["departures", variables.routeId] }),
-        queryClient.invalidateQueries({ queryKey: ["vehicles", variables.routeId] }),
-      ])
-    },
+    onSuccess: (_data, variables) => invalidateRouteRealtime(queryClient, variables.routeId),
   })
 }
